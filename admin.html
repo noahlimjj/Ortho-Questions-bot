@@ -62,8 +62,11 @@
         </div>
 
         <div class="form-group">
-            <label for="imageURL">Image URL (optional):</label>
-            <input type="url" id="imageURL">
+            <label for="imageFile">Upload Image (optional):</label>
+            <input type="file" id="imageFile" accept="image/*">
+            <small>Or provide URL:</small>
+            <input type="url" id="imageURL" placeholder="https://example.com/image.jpg">
+            <div id="imagePreview" style="margin-top: 10px;"></div>
         </div>
 
         <button type="submit">Add Question</button>
@@ -77,10 +80,46 @@
     <script>
         let questions = JSON.parse(localStorage.getItem('adminQuestions')) || [];
 
+        // Handle image file upload preview
+        document.getElementById('imageFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const preview = document.getElementById('imagePreview');
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px;">`;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.innerHTML = '';
+            }
+        });
+
         document.getElementById('questionForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
-            const newQuestion = {
+            // Handle image - either file upload or URL
+            let imageURL = document.getElementById('imageURL').value;
+            const imageFile = document.getElementById('imageFile').files[0];
+
+            if (imageFile) {
+                // Use base64 for uploaded files (for demo purposes)
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const newQuestion = createQuestionObject(e.target.result);
+                    saveQuestion(newQuestion);
+                };
+                reader.readAsDataURL(imageFile);
+                return; // Exit early to handle async file reading
+            }
+
+            const newQuestion = createQuestionObject(imageURL);
+            saveQuestion(newQuestion);
+        });
+
+        function createQuestionObject(imageURL) {
+            return {
                 ID: Date.now(),
                 question: document.getElementById('question').value,
                 options: [
@@ -91,16 +130,19 @@
                 ],
                 answer: getAnswerText(document.getElementById('correctAnswer').value),
                 explanation: document.getElementById('explanation').value,
-                ImageURL: document.getElementById('imageURL').value || null
+                ImageURL: imageURL || null
             };
+        }
 
+        function saveQuestion(newQuestion) {
             questions.push(newQuestion);
             localStorage.setItem('adminQuestions', JSON.stringify(questions));
 
             alert('Question added successfully!');
             document.getElementById('questionForm').reset();
+            document.getElementById('imagePreview').innerHTML = '';
             displayQuestions();
-        });
+        }
 
         function getAnswerText(letter) {
             const options = [
