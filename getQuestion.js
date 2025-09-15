@@ -49,9 +49,33 @@ exports.handler = async (event, context) => {
       return questionObj;
     });
 
-    // Select random question
-    const randomIndex = Math.floor(Math.random() * questions.length);
-    const randomQuestion = questions[randomIndex];
+    // Handle query parameters
+    const queryParams = new URLSearchParams(event.queryStringParameters || {});
+    const count = parseInt(queryParams.get('count')) || 1;
+    const excludeIds = queryParams.get('exclude') ? queryParams.get('exclude').split(',').map(Number) : [];
+
+    // Filter out excluded questions
+    const availableQuestions = questions.filter(q => {
+      const id = parseInt(headers.indexOf('ID') !== -1 ? q[headers.indexOf('ID')] : q[0]);
+      return !excludeIds.includes(id);
+    });
+
+    if (availableQuestions.length === 0) {
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ message: 'No more questions available' })
+      };
+    }
+
+    // Shuffle and select requested number of questions
+    const shuffled = availableQuestions.sort(() => Math.random() - 0.5);
+    const selectedQuestions = shuffled.slice(0, Math.min(count, availableQuestions.length));
 
     // Return success response with CORS headers
     return {
@@ -62,7 +86,7 @@ exports.handler = async (event, context) => {
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(randomQuestion)
+      body: JSON.stringify(count === 1 ? selectedQuestions[0] : selectedQuestions)
     };
 
   } catch (error) {

@@ -169,9 +169,71 @@ const explanationText = document.getElementById('explanation-text');
 const nextButton = document.getElementById('next-btn');
 
 let currentQuestionIndex = 0;
+let answeredQuestions = JSON.parse(localStorage.getItem('answeredQuestions')) || [];
+let dailyQuestions = JSON.parse(localStorage.getItem('dailyQuestions')) || [];
+let lastUpdateDate = localStorage.getItem('lastUpdateDate') || '';
+
+async function fetchDailyQuestions() {
+    try {
+        const excludeIds = answeredQuestions.join(',');
+        const response = await fetch(`/.netlify/functions/getQuestion?count=5&exclude=${excludeIds}`);
+        const data = await response.json();
+
+        if (data.message === 'No more questions available') {
+            return [];
+        }
+
+        return Array.isArray(data) ? data : [data];
+    } catch (error) {
+        console.error('Error fetching questions:', error);
+        return [];
+    }
+}
+
+async function initializeDaily() {
+    const today = new Date().toDateString();
+
+    if (lastUpdateDate !== today) {
+        // Try to fetch from API first, fallback to local questions
+        let newQuestions = await fetchDailyQuestions();
+
+        if (newQuestions.length === 0) {
+            // Fallback to local questions
+            const availableQuestions = questions.filter(q => !answeredQuestions.includes(q.ID));
+            newQuestions = shuffleArray(availableQuestions).slice(0, 5);
+        }
+
+        dailyQuestions = newQuestions.map(q => q.ID);
+
+        localStorage.setItem('dailyQuestions', JSON.stringify(dailyQuestions));
+        localStorage.setItem('lastUpdateDate', today);
+        lastUpdateDate = today;
+        currentQuestionIndex = 0;
+    }
+}
+
+function shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+function getTodaysQuestions() {
+    return questions.filter(q => dailyQuestions.includes(q.ID));
+}
 
 function loadQuestion() {
-    const currentQuestion = questions[currentQuestionIndex];
+    const todaysQuestions = getTodaysQuestions();
+
+    if (currentQuestionIndex >= todaysQuestions.length) {
+        showCompletion();
+        return;
+    }
+
+    const currentQuestion = todaysQuestions[currentQuestionIndex];
     questionText.textContent = currentQuestion.question;
     
     if (currentQuestion.ImageURL) {
@@ -194,7 +256,8 @@ function loadQuestion() {
 }
 
 function checkAnswer(selectedOption, button) {
-    const currentQuestion = questions[currentQuestionIndex];
+    const todaysQuestions = getTodaysQuestions();
+    const currentQuestion = todaysQuestions[currentQuestionIndex];
     if (selectedOption === currentQuestion.answer) {
         button.classList.add('correct');
     } else {
@@ -230,21 +293,55 @@ function enableOptions() {
 }
 
 function nextQuestion() {
-    currentQuestionIndex++;
-    if (currentQuestionIndex < questions.length) {
-        enableOptions();
-        loadQuestion();
-    } else {
-        // Quiz finished
-        questionText.textContent = "Quiz Finished!";
-        questionImage.style.display = 'none';
-        optionsContainer.innerHTML = '';
-        explanationContainer.style.display = 'none';
-        nextButton.style.display = 'none';
+    const todaysQuestions = getTodaysQuestions();
+    const currentQuestion = todaysQuestions[currentQuestionIndex];
+
+    // Mark question as answered
+    if (!answeredQuestions.includes(currentQuestion.ID)) {
+        answeredQuestions.push(currentQuestion.ID);
+        localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions));
     }
+
+    currentQuestionIndex++;
+    enableOptions();
+    loadQuestion();
+}
+
+function showCompletion() {
+    const completedToday = answeredQuestions.filter(id => dailyQuestions.includes(id)).length;
+    const totalAvailable = questions.filter(q => !answeredQuestions.includes(q.ID)).length;
+
+    questionText.innerHTML = `
+        <h2>Today's Quiz Complete! 🎉</h2>
+        <p>Questions completed today: ${completedToday}/5</p>
+        <p>Total questions available: ${totalAvailable}</p>
+        <p>Come back tomorrow for 5 new questions!</p>
+    `;
+    questionImage.style.display = 'none';
+    optionsContainer.innerHTML = '';
+    explanationContainer.style.display = 'none';
+    nextButton.style.display = 'none';
+
+    // Add reset button if user wants to restart
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = 'Reset Progress';
+    resetBtn.onclick = resetProgress;
+    resetBtn.style.marginTop = '20px';
+    resetBtn.className = 'option-btn';
+    optionsContainer.appendChild(resetBtn);
+}
+
+function resetProgress() {
+    localStorage.removeItem('answeredQuestions');
+    localStorage.removeItem('dailyQuestions');
+    localStorage.removeItem('lastUpdateDate');
+    location.reload();
 }
 
 nextButton.addEventListener('click', nextQuestion);
 
-// Initial load
-loadQuestion();
+// Initialize daily questions and load first question
+(async () => {
+    await initializeDaily();
+    loadQuestion();
+})();

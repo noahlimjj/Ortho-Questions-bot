@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question Admin Panel</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, textarea, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        textarea { height: 80px; resize: vertical; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .questions-list { margin-top: 30px; }
+        .question-item { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Orthopedic Questions Admin Panel</h1>
+
+    <form id="questionForm">
+        <div class="form-group">
+            <label for="question">Question:</label>
+            <textarea id="question" required></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="optionA">Option A:</label>
+            <input type="text" id="optionA" required>
+        </div>
+
+        <div class="form-group">
+            <label for="optionB">Option B:</label>
+            <input type="text" id="optionB" required>
+        </div>
+
+        <div class="form-group">
+            <label for="optionC">Option C:</label>
+            <input type="text" id="optionC" required>
+        </div>
+
+        <div class="form-group">
+            <label for="optionD">Option D:</label>
+            <input type="text" id="optionD" required>
+        </div>
+
+        <div class="form-group">
+            <label for="correctAnswer">Correct Answer:</label>
+            <select id="correctAnswer" required>
+                <option value="">Select...</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="explanation">Explanation:</label>
+            <textarea id="explanation" required></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="imageURL">Image URL (optional):</label>
+            <input type="url" id="imageURL">
+        </div>
+
+        <button type="submit">Add Question</button>
+    </form>
+
+    <div class="questions-list">
+        <h2>Recent Questions</h2>
+        <div id="questionsList"></div>
+    </div>
+
+    <script>
+        let questions = JSON.parse(localStorage.getItem('adminQuestions')) || [];
+
+        document.getElementById('questionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const newQuestion = {
+                ID: Date.now(),
+                question: document.getElementById('question').value,
+                options: [
+                    document.getElementById('optionA').value,
+                    document.getElementById('optionB').value,
+                    document.getElementById('optionC').value,
+                    document.getElementById('optionD').value
+                ],
+                answer: getAnswerText(document.getElementById('correctAnswer').value),
+                explanation: document.getElementById('explanation').value,
+                ImageURL: document.getElementById('imageURL').value || null
+            };
+
+            questions.push(newQuestion);
+            localStorage.setItem('adminQuestions', JSON.stringify(questions));
+
+            alert('Question added successfully!');
+            document.getElementById('questionForm').reset();
+            displayQuestions();
+        });
+
+        function getAnswerText(letter) {
+            const options = [
+                document.getElementById('optionA').value,
+                document.getElementById('optionB').value,
+                document.getElementById('optionC').value,
+                document.getElementById('optionD').value
+            ];
+            return options[letter.charCodeAt(0) - 65];
+        }
+
+        function displayQuestions() {
+            const list = document.getElementById('questionsList');
+            list.innerHTML = questions.slice(-5).reverse().map(q => `
+                <div class="question-item">
+                    <strong>Q:</strong> ${q.question}<br>
+                    <strong>Answer:</strong> ${q.answer}<br>
+                    <strong>Explanation:</strong> ${q.explanation}
+                </div>
+            `).join('');
+        }
+
+        displayQuestions();
+    </script>
+</body>
+</html>
