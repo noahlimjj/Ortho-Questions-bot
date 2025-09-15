@@ -191,13 +191,57 @@ const optionsContainer = document.getElementById('options-container');
 const explanationContainer = document.getElementById('explanation-container');
 const explanationText = document.getElementById('explanation-text');
 const nextButton = document.getElementById('next-btn');
+const progressBar = document.getElementById('progress-bar');
 
 let currentQuestionIndex = 0;
+let answeredQuestions = JSON.parse(localStorage.getItem('answeredQuestions')) || [];
+let dailyQuestions = JSON.parse(localStorage.getItem('dailyQuestions')) || [];
+let lastUpdateDate = localStorage.getItem('lastUpdateDate') || '';
+let currentScore = 0;
+let totalQuestions = 0;
+
+async function initializeDaily() {
+    const today = new Date().toDateString();
+
+    if (lastUpdateDate !== today) {
+        // New day - reset daily questions and get 10 new ones
+        const availableQuestions = questions.filter(q => !answeredQuestions.includes(q.ID));
+        dailyQuestions = shuffleArray(availableQuestions).slice(0, 10).map(q => q.ID);
+
+        localStorage.setItem('dailyQuestions', JSON.stringify(dailyQuestions));
+        localStorage.setItem('lastUpdateDate', today);
+        lastUpdateDate = today;
+        currentQuestionIndex = 0;
+        currentScore = 0;
+        totalQuestions = 0;
+    }
+}
+
+function shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+function getTodaysQuestions() {
+    return questions.filter(q => dailyQuestions.includes(q.ID));
+}
 
 function loadQuestion() {
-    const currentQuestion = questions[currentQuestionIndex];
+    const todaysQuestions = getTodaysQuestions();
+
+    if (currentQuestionIndex >= todaysQuestions.length) {
+        showCompletion();
+        return;
+    }
+
+    const currentQuestion = todaysQuestions[currentQuestionIndex];
     questionText.textContent = currentQuestion.question;
-    
+    progressBar.textContent = `Question ${currentQuestionIndex + 1} of 10 | Score: ${currentScore}/${totalQuestions}`;
+
     // Hide images for now since we don't have actual image files
     questionImage.style.display = 'none';
 
@@ -214,12 +258,17 @@ function loadQuestion() {
 }
 
 function checkAnswer(selectedOption, button) {
-    const currentQuestion = questions[currentQuestionIndex];
+    const todaysQuestions = getTodaysQuestions();
+    const currentQuestion = todaysQuestions[currentQuestionIndex];
+
+    totalQuestions++;
+
     if (selectedOption === currentQuestion.answer) {
         button.classList.add('correct');
+        currentScore++;
     } else {
         button.classList.add('incorrect');
-        // Optionally highlight the correct answer
+        // Highlight the correct answer
         Array.from(optionsContainer.children).forEach(btn => {
             if (btn.textContent === currentQuestion.answer) {
                 btn.classList.add('correct');
@@ -250,21 +299,77 @@ function enableOptions() {
 }
 
 function nextQuestion() {
-    currentQuestionIndex++;
-    if (currentQuestionIndex < questions.length) {
-        enableOptions();
-        loadQuestion();
-    } else {
-        // Quiz finished
-        questionText.textContent = "Quiz Finished!";
-        questionImage.style.display = 'none';
-        optionsContainer.innerHTML = '';
-        explanationContainer.style.display = 'none';
-        nextButton.style.display = 'none';
+    const todaysQuestions = getTodaysQuestions();
+    const currentQuestion = todaysQuestions[currentQuestionIndex];
+
+    // Mark question as answered
+    if (!answeredQuestions.includes(currentQuestion.ID)) {
+        answeredQuestions.push(currentQuestion.ID);
+        localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions));
     }
+
+    currentQuestionIndex++;
+    enableOptions();
+    loadQuestion();
+}
+
+function showCompletion() {
+    const percentage = Math.round((currentScore / 10) * 100);
+    let grade = '';
+    let message = '';
+
+    if (percentage >= 90) {
+        grade = 'A';
+        message = 'Excellent! Outstanding knowledge of orthopedic surgery! 🏆';
+    } else if (percentage >= 80) {
+        grade = 'B';
+        message = 'Great job! Solid understanding of orthopedics! 🎉';
+    } else if (percentage >= 70) {
+        grade = 'C';
+        message = 'Good work! Keep studying to improve! 📚';
+    } else if (percentage >= 60) {
+        grade = 'D';
+        message = 'Fair performance. More review needed. 📖';
+    } else {
+        grade = 'F';
+        message = 'Keep studying! Review the basics. 💪';
+    }
+
+    questionText.innerHTML = `
+        <div style="text-align: center;">
+            <h2>Quiz Complete! 🎯</h2>
+            <div style="font-size: 48px; margin: 20px 0;">${grade}</div>
+            <h3>Final Score: ${currentScore}/10 (${percentage}%)</h3>
+            <p style="font-size: 18px; color: #666;">${message}</p>
+            <p style="margin-top: 30px;">Come back tomorrow for 10 new questions!</p>
+        </div>
+    `;
+
+    questionImage.style.display = 'none';
+    optionsContainer.innerHTML = '';
+    explanationContainer.style.display = 'none';
+    nextButton.style.display = 'none';
+
+    // Add reset button
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = 'Reset Progress';
+    resetBtn.onclick = resetProgress;
+    resetBtn.style.marginTop = '20px';
+    resetBtn.className = 'option-btn';
+    optionsContainer.appendChild(resetBtn);
+}
+
+function resetProgress() {
+    localStorage.removeItem('answeredQuestions');
+    localStorage.removeItem('dailyQuestions');
+    localStorage.removeItem('lastUpdateDate');
+    location.reload();
 }
 
 nextButton.addEventListener('click', nextQuestion);
 
-// Initial load
-loadQuestion();
+// Initialize daily questions and load first question
+(async () => {
+    await initializeDaily();
+    loadQuestion();
+})();
