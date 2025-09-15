@@ -158,6 +158,30 @@ const questions = [
         answer: "Muscle strain/ligament sprain",
         explanation: "Non-specific low back pain, often due to muscle strains or ligament sprains, is the most common cause of low back pain.",
         ImageURL: "https://example.com/low_back_pain.jpg"
+    },
+    {
+        ID: 21,
+        question: "What is the order of the normal healing process of bones?",
+        options: ["Hematoma, soft callus, hard callus, woven bone, lamellar bone", "soft callus, hard callus, lamellar bone, woven bone", "Hematoma, soft callus, lamellar bone, hard callus, woven bone", "Soft callus, hematoma, hard callus, lamellar bone, woven bone"],
+        answer: "Hematoma, soft callus, hard callus, woven bone, lamellar bone",
+        explanation: "The normal healing process of bones involves several stages: hematoma formation, soft callus formation, hard callus formation, and finally bone remodeling into lamellar bone.",
+        ImageURL: "https://example.com/bone_healing.jpg"
+    },
+    {
+        ID: 22,
+        question: "A 47 year old woman, who had just finished her surgical fixation for a complex distal radial fracture of the right arm 12 hours ago, complains of severe forearm pain in the PACU. The anesthetist suspects that the increasing pain is caused by an incomplete nerve block and hence she performs another nerve block with ropivacaine. However, the patient was still screaming due to severe pain and hence the anesthetist came to you. Being Dr. Ooguway, the Master of Medicine, what would be the least appropriate next step in this case?",
+        options: ["Check if there is any tingling or pin prick sensation over the area", "Check for pale skin tone over the area", "Use a needle manometer", "Passively extend the muscles and see whether there is increase in pain"],
+        answer: "Use a needle manometer",
+        explanation: "This is commonly used for unconscious/obtunded patients in clinical practice because you can’t elicit pain history from them. However, if the patient complains of excruciating pain and if in the right clinical context, emergency management for compartment syndrome can be performed. Check for 5 ‘P’s if suspect compartment syndrome – Pain, Paresthesia, pressure, pallor, pulselessness.",
+        ImageURL: "https://example.com/compartment_syndrome.jpg"
+    },
+    {
+        ID: 23,
+        question: "Which one of the following is false about the clinical examinations of an ACL tear?",
+        options: ["Posterior drawer is negative", "Anterior drawer is positive", "There is posterior sag of the knee", "Lachman test is positive"],
+        answer: "There is posterior sag of the knee",
+        explanation: "Posterior sag and drawer are positive for PCL tear.",
+        ImageURL: "https://example.com/acl_exam.jpg"
     }
 ];
 
@@ -169,71 +193,9 @@ const explanationText = document.getElementById('explanation-text');
 const nextButton = document.getElementById('next-btn');
 
 let currentQuestionIndex = 0;
-let answeredQuestions = JSON.parse(localStorage.getItem('answeredQuestions')) || [];
-let dailyQuestions = JSON.parse(localStorage.getItem('dailyQuestions')) || [];
-let lastUpdateDate = localStorage.getItem('lastUpdateDate') || '';
-
-async function fetchDailyQuestions() {
-    try {
-        const excludeIds = answeredQuestions.join(',');
-        const response = await fetch(`/.netlify/functions/getQuestion?count=5&exclude=${excludeIds}`);
-        const data = await response.json();
-
-        if (data.message === 'No more questions available') {
-            return [];
-        }
-
-        return Array.isArray(data) ? data : [data];
-    } catch (error) {
-        console.error('Error fetching questions:', error);
-        return [];
-    }
-}
-
-async function initializeDaily() {
-    const today = new Date().toDateString();
-
-    if (lastUpdateDate !== today) {
-        // Try to fetch from API first, fallback to local questions
-        let newQuestions = await fetchDailyQuestions();
-
-        if (newQuestions.length === 0) {
-            // Fallback to local questions
-            const availableQuestions = questions.filter(q => !answeredQuestions.includes(q.ID));
-            newQuestions = shuffleArray(availableQuestions).slice(0, 5);
-        }
-
-        dailyQuestions = newQuestions.map(q => q.ID);
-
-        localStorage.setItem('dailyQuestions', JSON.stringify(dailyQuestions));
-        localStorage.setItem('lastUpdateDate', today);
-        lastUpdateDate = today;
-        currentQuestionIndex = 0;
-    }
-}
-
-function shuffleArray(array) {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-}
-
-function getTodaysQuestions() {
-    return questions.filter(q => dailyQuestions.includes(q.ID));
-}
 
 function loadQuestion() {
-    const todaysQuestions = getTodaysQuestions();
-
-    if (currentQuestionIndex >= todaysQuestions.length) {
-        showCompletion();
-        return;
-    }
-
-    const currentQuestion = todaysQuestions[currentQuestionIndex];
+    const currentQuestion = questions[currentQuestionIndex];
     questionText.textContent = currentQuestion.question;
     
     if (currentQuestion.ImageURL) {
@@ -256,8 +218,7 @@ function loadQuestion() {
 }
 
 function checkAnswer(selectedOption, button) {
-    const todaysQuestions = getTodaysQuestions();
-    const currentQuestion = todaysQuestions[currentQuestionIndex];
+    const currentQuestion = questions[currentQuestionIndex];
     if (selectedOption === currentQuestion.answer) {
         button.classList.add('correct');
     } else {
@@ -293,55 +254,21 @@ function enableOptions() {
 }
 
 function nextQuestion() {
-    const todaysQuestions = getTodaysQuestions();
-    const currentQuestion = todaysQuestions[currentQuestionIndex];
-
-    // Mark question as answered
-    if (!answeredQuestions.includes(currentQuestion.ID)) {
-        answeredQuestions.push(currentQuestion.ID);
-        localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions));
-    }
-
     currentQuestionIndex++;
-    enableOptions();
-    loadQuestion();
-}
-
-function showCompletion() {
-    const completedToday = answeredQuestions.filter(id => dailyQuestions.includes(id)).length;
-    const totalAvailable = questions.filter(q => !answeredQuestions.includes(q.ID)).length;
-
-    questionText.innerHTML = `
-        <h2>Today's Quiz Complete! 🎉</h2>
-        <p>Questions completed today: ${completedToday}/5</p>
-        <p>Total questions available: ${totalAvailable}</p>
-        <p>Come back tomorrow for 5 new questions!</p>
-    `;
-    questionImage.style.display = 'none';
-    optionsContainer.innerHTML = '';
-    explanationContainer.style.display = 'none';
-    nextButton.style.display = 'none';
-
-    // Add reset button if user wants to restart
-    const resetBtn = document.createElement('button');
-    resetBtn.textContent = 'Reset Progress';
-    resetBtn.onclick = resetProgress;
-    resetBtn.style.marginTop = '20px';
-    resetBtn.className = 'option-btn';
-    optionsContainer.appendChild(resetBtn);
-}
-
-function resetProgress() {
-    localStorage.removeItem('answeredQuestions');
-    localStorage.removeItem('dailyQuestions');
-    localStorage.removeItem('lastUpdateDate');
-    location.reload();
+    if (currentQuestionIndex < questions.length) {
+        enableOptions();
+        loadQuestion();
+    } else {
+        // Quiz finished
+        questionText.textContent = "Quiz Finished!";
+        questionImage.style.display = 'none';
+        optionsContainer.innerHTML = '';
+        explanationContainer.style.display = 'none';
+        nextButton.style.display = 'none
+    }
 }
 
 nextButton.addEventListener('click', nextQuestion);
 
-// Initialize daily questions and load first question
-(async () => {
-    await initializeDaily();
-    loadQuestion();
-})();
+// Initial load
+loadQuestion();
