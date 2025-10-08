@@ -1,12 +1,17 @@
-# Automated Question Generation Setup Guide
+# Fully Automated Question Generation & Review System
 
-This document explains how the automated daily question generation system works and how to set it up.
+This document explains how the **100% automated** daily question generation and weekly review system works.
 
 ---
 
 ## Overview
 
-The system automatically generates 10 new orthopedic questions every day using Perplexity AI, rotating through 7 different domains:
+The system is **fully automated** with zero manual work required:
+
+1. **Daily Generation** (2 AM UTC): Perplexity AI generates 10 new questions → Creates PR
+2. **Weekly Review** (Sunday 3 AM UTC): Claude AI validates questions → Auto-merges if passing
+
+### Question Domains (7-day rotation):
 
 1. Trauma
 2. Spine
@@ -16,9 +21,11 @@ The system automatically generates 10 new orthopedic questions every day using P
 6. Foot and Ankle
 7. Orthopedic Emergencies
 
-**Schedule**: Daily at 2 AM UTC
-**Output**: Pull Request with 10 new questions for weekly review
-**Cost**: ~$0.06/month (Perplexity API)
+### Automation Stats:
+- **Schedule**: Daily generation + Weekly auto-review
+- **Manual Work**: Zero (100% automated)
+- **Output**: ~70 validated questions/week auto-merged
+- **Cost**: ~$0.45/month (Perplexity $0.15 + Claude $0.30)
 
 ---
 
@@ -26,56 +33,88 @@ The system automatically generates 10 new orthopedic questions every day using P
 
 ### Architecture
 
+#### Daily Question Generation (2 AM UTC)
 ```
-GitHub Actions (Cron: 2 AM UTC daily)
+GitHub Actions (daily-questions.yml)
     ↓
-1. Checkout repository
+1. Generate 10 questions with Perplexity API
+2. Validate CSV format
+3. Rotate to next domain
+4. Create Pull Request
+```
+
+#### Weekly Automated Review (Sunday 3 AM UTC)
+```
+GitHub Actions (weekly-review.yml)
     ↓
-2. Read ortho_questions.csv (get last ID, existing questions)
+1. Find all open automated PRs
     ↓
-3. Read QUESTION_BUILDER_PROMPT.md (get prompt template)
+2. Extract questions from PR diff
     ↓
-4. Read scripts/domain-tracker.json (get current domain)
+3. Send to Claude API for validation
     ↓
-5. Build complete prompt with context
+4. Claude validates:
+   - Medical accuracy (evidence-based)
+   - 5 options per question
+   - Clear correct answer
+   - Quality explanations
+   - No duplicates
     ↓
-6. Call Perplexity API
+5. If score ≥ 9.0/10:
+   ✅ Auto-approve + Auto-merge
+   Questions go live immediately
     ↓
-7. Validate response (CSV format, 5 options, no duplicates)
-    ↓
-8. Append to ortho_questions.csv
-    ↓
-9. Update domain-tracker.json (rotate to next domain)
-    ↓
-10. Create Pull Request for review
+6. If score < 9.0/10:
+   ⚠️ Add "needs-manual-review" label
+   Assign to repository owner
+   Post Claude's feedback as comment
 ```
 
 ### Files
 
-- **`.github/workflows/daily-questions.yml`**: GitHub Actions workflow
-- **`scripts/generate-questions.js`**: Main generation script
-- **`scripts/domain-tracker.json`**: Tracks domain rotation
-- **`QUESTION_BUILDER_PROMPT.md`**: Prompt template
-- **`ortho_questions.csv`**: Question database
+**Generation:**
+- **`.github/workflows/daily-questions.yml`**: Daily generation workflow
+- **`scripts/generate-questions.js`**: Perplexity API integration
+- **`scripts/domain-tracker.json`**: Domain rotation state
+- **`QUESTION_BUILDER_PROMPT.md`**: Generation prompt template
+
+**Review:**
+- **`.github/workflows/weekly-review.yml`**: Weekly review workflow
+- **`scripts/review-pr.js`**: Claude API integration + auto-merge logic
+- **`scripts/claude-validator-prompt.md`**: Validation criteria for Claude
+
+**Data:**
+- **`ortho_questions.csv`**: Question database (auto-updated)
 
 ---
 
 ## Setup Instructions
 
-### 1. Get Perplexity API Key
+### 1. Get API Keys
 
+#### Perplexity API (for question generation)
 1. Go to [Perplexity API Settings](https://www.perplexity.ai/settings/api)
 2. Create an API key
-3. Add credits to your account ($3 minimum, lasts ~50 days)
+3. Add credits ($3 minimum, lasts ~20 days at current usage)
 
-### 2. Add GitHub Secret
+#### Anthropic API (for Claude review)
+1. Go to [Anthropic Console](https://console.anthropic.com/)
+2. Create an API key
+3. Add credits ($5 minimum, lasts ~16 weeks at current usage)
+
+### 2. Add GitHub Secrets
 
 1. Go to your GitHub repository
 2. Navigate to **Settings** → **Secrets and variables** → **Actions**
-3. Click **New repository secret**
-4. Name: `PERPLEXITY_API_KEY`
-5. Value: Your Perplexity API key
-6. Click **Add secret**
+3. Add **two** repository secrets:
+
+   **Secret 1:**
+   - Name: `PERPLEXITY_API_KEY`
+   - Value: Your Perplexity API key
+
+   **Secret 2:**
+   - Name: `ANTHROPIC_API_KEY`
+   - Value: Your Anthropic API key
 
 ### 3. Enable GitHub Actions Permissions
 
@@ -85,40 +124,61 @@ GitHub Actions (Cron: 2 AM UTC daily)
    - Check **Allow GitHub Actions to create and approve pull requests**
 3. Click **Save**
 
-### 4. Test the Workflow
+### 4. Test the System
 
-#### Option A: Manual Trigger (Recommended)
+#### Test Question Generation:
 1. Go to **Actions** tab in GitHub
-2. Select **Generate Daily Orthopedic Questions** workflow
+2. Select **Generate Daily Orthopedic Questions**
 3. Click **Run workflow** → **Run workflow**
 4. Wait 2-3 minutes for completion
-5. Check the **Pull requests** tab for the generated PR
+5. Check **Pull requests** tab for the generated PR
 
-#### Option B: Wait for Scheduled Run
-The workflow runs automatically at 2 AM UTC daily.
+#### Test Automated Review:
+1. Wait for a PR to be created (or create one manually)
+2. Go to **Actions** tab
+3. Select **Weekly PR Review with Claude**
+4. Click **Run workflow** → **Run workflow**
+5. Check PR for Claude's review comment
+6. If score ≥ 9.0, PR will be auto-merged
+
+#### Or Just Wait:
+- **Daily generation** runs automatically at 2 AM UTC
+- **Weekly review** runs automatically every Sunday at 3 AM UTC
 
 ---
 
-## Weekly Review Process
+## Automated Review Process
 
-Every week (7 days), you'll have ~70 new questions to review:
+### What Happens Automatically:
 
-### Steps:
-1. **Check Pull Requests** tab on GitHub
-2. **Open the latest auto-generated PR**
-3. **Review the questions**:
-   - Medical accuracy
-   - 5 options per question (A-E)
-   - No duplicates
-   - Appropriate difficulty
-4. **Use Claude Code for validation** (optional):
-   - Pull the branch locally
-   - Ask Claude Code to validate medical accuracy
-   - Fix any issues
-5. **Approve and merge** the PR
-6. Questions automatically appear in your quiz app
+Every Sunday at 3 AM UTC, Claude AI reviews all accumulated PRs:
 
-**Time commitment**: ~15 minutes/week
+1. **Fetches PRs**: Finds all open "automated" PRs from the past week
+2. **Extracts Questions**: Reads the CSV diff from each PR
+3. **Validates with Claude**: Sends questions to Claude API for comprehensive review
+4. **Scores Each Question** (0-10):
+   - Medical Accuracy (0-4 points) - Critical
+   - Question Structure (0-2 points) - Critical
+   - Correct Answer (0-2 points) - Critical
+   - Explanation Quality (0-1 point)
+   - Difficulty Level (0-1 point)
+5. **Calculates Overall Score**: Average of all questions
+6. **Auto-Merge Decision**:
+   - **Score ≥ 9.0**: ✅ Auto-approve and merge immediately
+   - **Score < 9.0**: ⚠️ Label as "needs-manual-review" and assign to you
+
+### What You Need to Do:
+
+**If everything goes well:** Nothing! Questions are auto-merged and go live.
+
+**If validation fails:**
+- You'll be assigned the PR
+- Claude's feedback will be in PR comments
+- Review Claude's concerns
+- Fix issues or override if Claude is wrong
+- Manually merge
+
+**Time commitment**: ~0 minutes/week (only manual intervention if validation fails)
 
 ---
 

@@ -1,13 +1,17 @@
 {
   "name": "ortho-questions-bot",
   "version": "1.0.0",
-  "description": "Daily orthopedic quiz bot with automated question generation",
+  "description": "Daily orthopedic quiz bot with automated question generation and AI-powered review",
   "scripts": {
     "generate": "node scripts/generate-questions.js",
-    "test-generate": "echo 'Testing question generation...' && node scripts/generate-questions.js"
+    "review": "node scripts/review-pr.js",
+    "test-generate": "echo 'Testing question generation...' && node scripts/generate-questions.js",
+    "test-review": "echo 'Testing PR review...' && node scripts/review-pr.js"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.10",
+    "@anthropic-ai/sdk": "^0.32.0",
+    "@octokit/rest": "^21.0.0",
     "axios": "^1.6.0",
     "csv-parse": "^5.5.0",
     "csv-stringify": "^6.4.0"
