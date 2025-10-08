@@ -119,8 +119,9 @@ async function reviewPR(pr) {
 
   // Step 5: Auto-merge if passed
   if (validation.passed && validation.overallScore >= PASSING_SCORE) {
-    console.log('   ✅ Validation passed - Auto-approving and merging...');
-    await approvePR(pr.number);
+    console.log('   ✅ Validation passed - Auto-merging...');
+    // Skip approval step (GitHub Actions can't approve its own PRs)
+    // Just merge directly if validation passed
     await mergePR(pr.number);
     console.log('   🎉 PR merged successfully!');
   } else {
@@ -236,7 +237,7 @@ async function postReviewComment(prNumber, validation) {
 
   // Action taken
   if (passed) {
-    comment += `---\n\n✨ **Action Taken:** This PR has been automatically approved and merged.\n\n`;
+    comment += `---\n\n✨ **Action Taken:** This PR has been automatically merged after passing validation.\n\n`;
   } else {
     comment += `---\n\n⚠️ **Action Required:** This PR requires manual review due to validation issues. Please review the questions and address the issues above before merging.\n\n`;
   }
