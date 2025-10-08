@@ -2,7 +2,6 @@
 let questions = [];
 
 const questionText = document.getElementById('question-text');
-const questionImage = document.getElementById('question-image');
 const optionsContainer = document.getElementById('options-container');
 const explanationContainer = document.getElementById('explanation-container');
 const explanationText = document.getElementById('explanation-text');
@@ -46,7 +45,6 @@ function parseCSV(text) {
     const optionEIndex = headers.indexOf('OptionE');
     const answerIndex = headers.indexOf('CorrectAnswer');
     const explanationIndex = headers.indexOf('Explanation');
-    const imageURLIndex = headers.indexOf('ImageURL');
 
     return parsed.slice(1).map(row => {
         const options = [
@@ -54,10 +52,8 @@ function parseCSV(text) {
             row[optionBIndex],
             row[optionCIndex],
             row[optionDIndex],
+            row[optionEIndex],
         ];
-        if (row[optionEIndex] && row[optionEIndex].trim() !== '') {
-            options.push(row[optionEIndex]);
-        }
 
         let correctAnswerText = '';
         const correctLetter = row[answerIndex];
@@ -72,8 +68,7 @@ function parseCSV(text) {
             question: row[questionIndex],
             options: options.filter(o => o && o.trim() !== ''),
             answer: correctAnswerText,
-            explanation: row[explanationIndex],
-            ImageURL: row[imageURLIndex]
+            explanation: row[explanationIndex]
         };
     });
 }
@@ -132,20 +127,14 @@ function loadQuestion() {
 
     const currentQuestion = todaysQuestions[currentQuestionIndex];
     questionText.textContent = currentQuestion.question;
-    progressBar.textContent = `Question ${currentQuestionIndex + 1} of 10 | Score: ${currentScore}/${totalQuestions}`;
-
-    if (currentQuestion.ImageURL && currentQuestion.ImageURL.trim() !== '') {
-        questionImage.src = currentQuestion.ImageURL;
-        questionImage.style.display = 'block';
-    } else {
-        questionImage.style.display = 'none';
-    }
+    progressBar.textContent = `Question ${currentQuestionIndex + 1}/10 | Score: ${currentScore}/${currentQuestionIndex}`;
 
     optionsContainer.innerHTML = '';
-    currentQuestion.options.forEach(option => {
+    currentQuestion.options.forEach((option, index) => {
         const button = document.createElement('button');
         button.classList.add('option-btn');
-        button.textContent = option;
+        const optionLetter = String.fromCharCode(65 + index); // A, B, C, D, E
+        button.textContent = `${optionLetter}. ${option}`;
         button.addEventListener('click', () => checkAnswer(option, button));
         optionsContainer.appendChild(button);
     });
@@ -166,7 +155,8 @@ function checkAnswer(selectedOption, button) {
         button.classList.add('incorrect');
         // Highlight the correct answer
         Array.from(optionsContainer.children).forEach(btn => {
-            if (btn.textContent === currentQuestion.answer) {
+            const btnText = btn.textContent.substring(3); // Remove "A. " prefix
+            if (btnText === currentQuestion.answer) {
                 btn.classList.add('correct');
             }
         });
@@ -179,8 +169,14 @@ function checkAnswer(selectedOption, button) {
 function showExplanation(explanation) {
     if (explanation && explanation.trim() !== '') {
         explanationText.textContent = explanation;
-        explanationContainer.style.display = 'block';
+        explanationText.style.fontStyle = 'normal';
+        explanationText.style.color = '#333333';
+    } else {
+        explanationText.textContent = 'No explanation available for this question.';
+        explanationText.style.fontStyle = 'italic';
+        explanationText.style.color = '#999';
     }
+    explanationContainer.style.display = 'block';
 }
 
 function disableOptions() {
@@ -243,17 +239,19 @@ function showCompletion() {
         </div>
     `;
 
-    questionImage.style.display = 'none';
     optionsContainer.innerHTML = '';
     explanationContainer.style.display = 'none';
     nextButton.style.display = 'none';
 
     // Add reset button
     const resetBtn = document.createElement('button');
-    resetBtn.textContent = 'Reset Progress';
-    resetBtn.onclick = resetProgress;
-    resetBtn.style.marginTop = '20px';
-    resetBtn.className = 'option-btn';
+    resetBtn.textContent = 'Reset All Progress';
+    resetBtn.onclick = () => {
+        if (confirm('Reset all progress? This will clear your question history and you can start fresh.')) {
+            resetProgress();
+        }
+    };
+    resetBtn.style.cssText = 'margin-top: 20px; background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1em;';
     optionsContainer.appendChild(resetBtn);
 }
 
