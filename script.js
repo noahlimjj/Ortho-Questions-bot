@@ -46,31 +46,34 @@ function parseCSV(text) {
     const answerIndex = headers.indexOf('CorrectAnswer');
     const explanationIndex = headers.indexOf('Explanation');
 
-    return parsed.slice(1).map(row => {
-        const options = [
-            row[optionAIndex],
-            row[optionBIndex],
-            row[optionCIndex],
-            row[optionDIndex],
-            row[optionEIndex],
-        ];
+    return parsed.slice(1)
+        .filter(row => row && row[idIndex] && row[idIndex].trim() !== '') // Skip empty rows
+        .map(row => {
+            const options = [
+                row[optionAIndex],
+                row[optionBIndex],
+                row[optionCIndex],
+                row[optionDIndex],
+                row[optionEIndex],
+            ];
 
-        let correctAnswerText = '';
-        const correctLetter = row[answerIndex];
-        if (correctLetter === 'A') correctAnswerText = row[optionAIndex];
-        else if (correctLetter === 'B') correctAnswerText = row[optionBIndex];
-        else if (correctLetter === 'C') correctAnswerText = row[optionCIndex];
-        else if (correctLetter === 'D') correctAnswerText = row[optionDIndex];
-        else if (correctLetter === 'E') correctAnswerText = row[optionEIndex];
+            let correctAnswerText = '';
+            const correctLetter = row[answerIndex];
+            if (correctLetter === 'A') correctAnswerText = row[optionAIndex];
+            else if (correctLetter === 'B') correctAnswerText = row[optionBIndex];
+            else if (correctLetter === 'C') correctAnswerText = row[optionCIndex];
+            else if (correctLetter === 'D') correctAnswerText = row[optionDIndex];
+            else if (correctLetter === 'E') correctAnswerText = row[optionEIndex];
 
-        return {
-            ID: parseInt(row[idIndex], 10),
-            question: row[questionIndex],
-            options: options.filter(o => o && o.trim() !== ''),
-            answer: correctAnswerText,
-            explanation: row[explanationIndex]
-        };
-    });
+            return {
+                ID: parseInt(row[idIndex], 10),
+                question: row[questionIndex],
+                options: options.filter(o => o && o.trim() !== ''),
+                answer: correctAnswerText,
+                explanation: row[explanationIndex]
+            };
+        })
+        .filter(q => !isNaN(q.ID) && q.question && q.answer); // Filter out invalid questions
 }
 
 
@@ -80,6 +83,9 @@ async function loadQuestions() {
         const response = await fetch('ortho_questions.csv');
         const csvText = await response.text();
         questions = parseCSV(csvText);
+        console.log(`Total questions parsed: ${questions.length}`);
+        console.log('Question IDs:', questions.map(q => q.ID).sort((a,b) => a-b));
+        console.log('Questions with NaN ID:', questions.filter(q => isNaN(q.ID)).length);
     } catch (error) {
         console.error('Error loading or parsing CSV file:', error);
         questionText.textContent = 'Failed to load questions. Please check the console for errors.';
@@ -93,7 +99,9 @@ async function initializeDaily() {
     if (lastUpdateDate !== today) {
         // New day - reset daily questions and get 10 new ones
         const availableQuestions = questions.filter(q => !answeredQuestions.includes(q.ID));
+        console.log(`Available questions: ${availableQuestions.length}`);
         dailyQuestions = shuffleArray(availableQuestions).slice(0, 10).map(q => q.ID);
+        console.log('Daily question IDs:', dailyQuestions);
 
         localStorage.setItem('dailyQuestions', JSON.stringify(dailyQuestions));
         localStorage.setItem('lastUpdateDate', today);
@@ -101,6 +109,8 @@ async function initializeDaily() {
         currentQuestionIndex = 0;
         currentScore = 0;
         totalQuestions = 0;
+    } else {
+        console.log('Using existing daily questions:', dailyQuestions);
     }
 }
 
@@ -114,7 +124,15 @@ function shuffleArray(array) {
 }
 
 function getTodaysQuestions() {
-    return questions.filter(q => dailyQuestions.includes(q.ID));
+    const todaysQs = questions.filter(q => dailyQuestions.includes(q.ID));
+    console.log(`Today's questions count: ${todaysQs.length} (expected: ${dailyQuestions.length})`);
+    if (todaysQs.length !== dailyQuestions.length) {
+        console.warn('Missing questions! Daily IDs:', dailyQuestions);
+        console.warn('Found IDs:', todaysQs.map(q => q.ID));
+        const missing = dailyQuestions.filter(id => !todaysQs.find(q => q.ID === id));
+        console.warn('Missing IDs:', missing);
+    }
+    return todaysQs;
 }
 
 function loadQuestion() {
@@ -276,5 +294,15 @@ if (document.getElementById('clear-storage-btn')) {
     document.getElementById('clear-storage-btn').addEventListener('click', () => {
         localStorage.clear();
         alert('Local storage cleared!');
+    });
+}
+
+// Debug button on main page
+if (document.getElementById('clear-storage-debug')) {
+    document.getElementById('clear-storage-debug').addEventListener('click', () => {
+        if (confirm('Clear all progress and restart quiz?')) {
+            localStorage.clear();
+            location.reload();
+        }
     });
 }

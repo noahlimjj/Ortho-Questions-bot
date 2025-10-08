@@ -81,6 +81,7 @@ def main():
                 q['options'][1] if len(q['options']) > 1 else '',
                 q['options'][2] if len(q['options']) > 2 else '',
                 q['options'][3] if len(q['options']) > 3 else '',
+                q['options'][4] if len(q['options']) > 4 else '',
                 q['answer'],
                 q['explanation'],
                 '' # ImageURL
