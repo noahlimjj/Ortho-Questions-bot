@@ -1,0 +1,81 @@
+name: Generate Daily Orthopedic Questions
+
+on:
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual triggering for testing
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate-questions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate questions
+        env:
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+        run: node scripts/generate-questions.js
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: |
+            Add daily generated orthopedic questions
+
+            🤖 Auto-generated questions via Perplexity API
+
+            Co-Authored-By: Ortho Quiz Bot <noreply@github.com>
+          branch: auto-questions/${{ github.run_number }}
+          delete-branch: true
+          title: '🏥 Daily Questions: ${{ github.run_number }}'
+          body: |
+            ## Automated Question Generation 🤖
+
+            This PR contains newly generated orthopedic questions.
+
+            ### Summary
+            - **Run Date**: ${{ github.event.repository.updated_at }}
+            - **Workflow**: Daily Questions Generator
+            - **Source**: Perplexity API (llama-3.1-sonar-large-128k-online)
+
+            ### What to Review
+            - [ ] Verify all questions have 5 options (A-E)
+            - [ ] Check medical accuracy of questions and explanations
+            - [ ] Ensure no duplicate questions
+            - [ ] Validate CSV formatting
+            - [ ] Confirm difficulty level is appropriate
+
+            ### Next Steps
+            1. Review the generated questions
+            2. Use Claude Code to validate medical accuracy if needed
+            3. Approve and merge if questions meet quality standards
+            4. Questions will automatically appear in the quiz app
+
+            ---
+
+            *This PR was automatically created by the Daily Questions workflow.*
+            *Questions are generated weekly for review and approval.*
+          labels: |
+            automated
+            questions
+            needs-review
+          assignees: ${{ github.repository_owner }}
