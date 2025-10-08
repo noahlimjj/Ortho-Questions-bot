@@ -187,7 +187,7 @@ async function callPerplexityAPI(apiKey, prompt) {
     const response = await axios.post(
       'https://api.perplexity.ai/chat/completions',
       {
-        model: 'llama-3.1-sonar-large-128k-online', // Using online model for medical accuracy
+        model: 'sonar-pro', // Using Sonar Pro model for better medical accuracy
         messages: [
           {
             role: 'system',
