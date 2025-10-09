@@ -173,8 +173,8 @@ IMPORTANT REQUIREMENTS:
 3. All questions must be about ${domain}
 4. Output ONLY valid CSV rows (no markdown, no headers, no extra text)
 5. Each row must follow this exact format:
-   ID,Question,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation
-6. Use only 4 options (A, B, C, D) - no Option E
+   ID,Question,OptionA,OptionB,OptionC,OptionD,OptionE,CorrectAnswer,Explanation
+6. MUST include 5 options (A, B, C, D, E) - all 5 options are required
 7. Wrap fields containing commas in double quotes
 8. Escape internal quotes by doubling them ("")
 9. No newlines within fields
@@ -183,9 +183,9 @@ OUTPUT FORMAT:
 Return ONLY the CSV rows, nothing else. No markdown code blocks, no explanations, just CSV.
 
 Example of expected output (3 questions):
-${nextId},"A 45-year-old man presents with...",Option A,Option B,Option C,Option D,C,"Explanation here..."
-${nextId + 1},"A 67-year-old woman...",Option A,Option B,Option C,Option D,A,"Explanation here..."
-${nextId + 2},"What is the most...",Option A,Option B,Option C,Option D,B,"Explanation here..."
+${nextId},"A 45-year-old man presents with...",Option A,Option B,Option C,Option D,Option E,C,"Explanation here..."
+${nextId + 1},"A 67-year-old woman...",Option A,Option B,Option C,Option D,Option E,A,"Explanation here..."
+${nextId + 2},"What is the most...",Option A,Option B,Option C,Option D,Option E,B,"Explanation here..."
 
 Now generate ${QUESTIONS_PER_RUN} questions for ${domain}:`;
 
@@ -233,7 +233,7 @@ async function callPerplexityAPI(apiKey, prompt) {
 
     // Parse CSV
     const records = parse(cleanedContent, {
-      columns: ['ID', 'Question', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Explanation'],
+      columns: ['ID', 'Question', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'OptionE', 'CorrectAnswer', 'Explanation'],
       skip_empty_lines: true,
       relax_column_count: true,
       trim: true
@@ -257,7 +257,7 @@ function validateQuestions(questions, lastId, existingQuestions) {
 
     // Check required fields
     if (!question.ID || !question.Question || !question.OptionA || !question.OptionB ||
-        !question.OptionC || !question.OptionD ||
+        !question.OptionC || !question.OptionD || !question.OptionE ||
         !question.CorrectAnswer || !question.Explanation) {
       issues.push('Missing required fields');
     }
@@ -268,8 +268,8 @@ function validateQuestions(questions, lastId, existingQuestions) {
       issues.push(`Invalid ID: ${question.ID} (must be > ${lastId})`);
     }
 
-    // Validate correct answer (4 options: A, B, C, D)
-    if (!['A', 'B', 'C', 'D'].includes(question.CorrectAnswer)) {
+    // Validate correct answer (5 options: A, B, C, D, E)
+    if (!['A', 'B', 'C', 'D', 'E'].includes(question.CorrectAnswer)) {
       issues.push(`Invalid CorrectAnswer: ${question.CorrectAnswer}`);
     }
 
@@ -334,7 +334,7 @@ async function appendToCSV(questions) {
   // Generate CSV rows for new questions
   const csvRows = stringify(questionsWithImages, {
     header: false,
-    columns: ['ID', 'Question', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Explanation', 'ImageURL'],
+    columns: ['ID', 'Question', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'OptionE', 'CorrectAnswer', 'Explanation', 'ImageURL'],
     quoted: true, // Quote all fields to prevent CSV injection
     quoted_string: true
   });
