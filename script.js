@@ -98,8 +98,22 @@ async function initializeDaily() {
 
     if (lastUpdateDate !== today) {
         // New day - reset daily questions and get 10 new ones
-        const availableQuestions = questions.filter(q => !answeredQuestions.includes(q.ID));
+        let availableQuestions = questions.filter(q => !answeredQuestions.includes(q.ID));
         console.log(`Available questions: ${availableQuestions.length}`);
+
+        // If no questions available or fewer than 10, reset progress
+        if (availableQuestions.length === 0) {
+            console.log('All questions completed! Resetting progress...');
+            answeredQuestions = [];
+            localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions));
+            availableQuestions = questions; // All questions available again
+        }
+
+        // If fewer than 10 questions remain, warn user but continue
+        if (availableQuestions.length < 10 && availableQuestions.length > 0) {
+            console.log(`Only ${availableQuestions.length} questions remaining before reset`);
+        }
+
         dailyQuestions = shuffleArray(availableQuestions).slice(0, 10).map(q => q.ID);
         console.log('Daily question IDs:', dailyQuestions);
 
@@ -247,12 +261,28 @@ function showCompletion() {
         message = 'Keep studying! Review the basics. 💪';
     }
 
+    // Calculate progress stats
+    const totalQuestionsInBank = questions.length;
+    const questionsAnswered = answeredQuestions.length;
+    const questionsRemaining = totalQuestionsInBank - questionsAnswered;
+    const progressPercent = Math.round((questionsAnswered / totalQuestionsInBank) * 100);
+
+    let progressMessage = '';
+    if (questionsRemaining === 0) {
+        progressMessage = '<p style="color: #28a745; font-weight: bold;">🎊 You\'ve completed all questions! Progress will reset tomorrow with fresh questions.</p>';
+    } else if (questionsRemaining < 10) {
+        progressMessage = `<p style="color: #ff9800;">⚠️ Only ${questionsRemaining} new questions remaining! Progress will automatically reset when complete.</p>`;
+    } else {
+        progressMessage = `<p style="color: #666;">📊 Progress: ${questionsAnswered}/${totalQuestionsInBank} questions completed (${progressPercent}%)</p>`;
+    }
+
     questionText.innerHTML = `
         <div style="text-align: center;">
             <h2>Quiz Complete! 🎯</h2>
             <div style="font-size: 48px; margin: 20px 0;">${grade}</div>
             <h3>Final Score: ${currentScore}/10 (${percentage}%)</h3>
             <p style="font-size: 18px; color: #666;">${message}</p>
+            ${progressMessage}
             <p style="margin-top: 30px;">Come back tomorrow for 10 new questions!</p>
         </div>
     `;
