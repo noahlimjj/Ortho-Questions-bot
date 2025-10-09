@@ -18,6 +18,16 @@ async function main() {
   try {
     console.log('🏥 Starting Orthopedic Questions Generator...\n');
 
+    // Step 0: Pre-flight CSV validation
+    console.log('🔍 Pre-flight CSV validation...');
+    try {
+      await validateCSVFile();
+      console.log('   ✅ CSV file is valid and ready\n');
+    } catch (error) {
+      console.error('   ❌ CSV file has formatting errors that must be fixed before proceeding');
+      throw error;
+    }
+
     // Step 1: Read existing questions
     console.log('📊 Reading existing questions...');
     const existingQuestions = await readExistingQuestions();
@@ -163,18 +173,19 @@ IMPORTANT REQUIREMENTS:
 3. All questions must be about ${domain}
 4. Output ONLY valid CSV rows (no markdown, no headers, no extra text)
 5. Each row must follow this exact format:
-   ID,Question,OptionA,OptionB,OptionC,OptionD,OptionE,CorrectAnswer,Explanation
-6. Wrap fields containing commas in double quotes
-7. Escape internal quotes by doubling them ("")
-8. No newlines within fields
+   ID,Question,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation
+6. Use only 4 options (A, B, C, D) - no Option E
+7. Wrap fields containing commas in double quotes
+8. Escape internal quotes by doubling them ("")
+9. No newlines within fields
 
 OUTPUT FORMAT:
 Return ONLY the CSV rows, nothing else. No markdown code blocks, no explanations, just CSV.
 
 Example of expected output (3 questions):
-${nextId},"A 45-year-old man presents with...",Option A,Option B,Option C,Option D,Option E,C,"Explanation here..."
-${nextId + 1},"A 67-year-old woman...",Option A,Option B,Option C,Option D,Option E,A,"Explanation here..."
-${nextId + 2},"What is the most...",Option A,Option B,Option C,Option D,Option E,B,"Explanation here..."
+${nextId},"A 45-year-old man presents with...",Option A,Option B,Option C,Option D,C,"Explanation here..."
+${nextId + 1},"A 67-year-old woman...",Option A,Option B,Option C,Option D,A,"Explanation here..."
+${nextId + 2},"What is the most...",Option A,Option B,Option C,Option D,B,"Explanation here..."
 
 Now generate ${QUESTIONS_PER_RUN} questions for ${domain}:`;
 
@@ -222,7 +233,7 @@ async function callPerplexityAPI(apiKey, prompt) {
 
     // Parse CSV
     const records = parse(cleanedContent, {
-      columns: ['ID', 'Question', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'OptionE', 'CorrectAnswer', 'Explanation'],
+      columns: ['ID', 'Question', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Explanation'],
       skip_empty_lines: true,
       relax_column_count: true,
       trim: true
@@ -246,7 +257,7 @@ function validateQuestions(questions, lastId, existingQuestions) {
 
     // Check required fields
     if (!question.ID || !question.Question || !question.OptionA || !question.OptionB ||
-        !question.OptionC || !question.OptionD || !question.OptionE ||
+        !question.OptionC || !question.OptionD ||
         !question.CorrectAnswer || !question.Explanation) {
       issues.push('Missing required fields');
     }
@@ -257,8 +268,8 @@ function validateQuestions(questions, lastId, existingQuestions) {
       issues.push(`Invalid ID: ${question.ID} (must be > ${lastId})`);
     }
 
-    // Validate correct answer
-    if (!['A', 'B', 'C', 'D', 'E'].includes(question.CorrectAnswer)) {
+    // Validate correct answer (4 options: A, B, C, D)
+    if (!['A', 'B', 'C', 'D'].includes(question.CorrectAnswer)) {
       issues.push(`Invalid CorrectAnswer: ${question.CorrectAnswer}`);
     }
 
@@ -289,14 +300,51 @@ function validateQuestions(questions, lastId, existingQuestions) {
   return validated;
 }
 
+// Validate CSV file can be parsed
+async function validateCSVFile() {
+  try {
+    const csvContent = await fs.readFile(CSV_PATH, 'utf-8');
+    const records = parse(csvContent, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      relax_quotes: false, // Strict quote validation
+      strict: true // Strict mode for better error detection
+    });
+    console.log(`   ✅ CSV validation passed: ${records.length} records`);
+    return true;
+  } catch (error) {
+    console.error(`   ❌ CSV validation failed: ${error.message}`);
+    throw new Error(`CSV file is invalid and cannot be parsed: ${error.message}`);
+  }
+}
+
 // Append validated questions to CSV
 async function appendToCSV(questions) {
-  const csvRows = stringify(questions, {
+  // First, validate the existing CSV file
+  console.log('   Validating existing CSV file...');
+  await validateCSVFile();
+
+  // Add ImageURL placeholder if not present
+  const questionsWithImages = questions.map(q => ({
+    ...q,
+    ImageURL: q.ImageURL || '' // Add empty ImageURL if not provided
+  }));
+
+  // Generate CSV rows for new questions
+  const csvRows = stringify(questionsWithImages, {
     header: false,
-    columns: ['ID', 'Question', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'OptionE', 'CorrectAnswer', 'Explanation']
+    columns: ['ID', 'Question', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Explanation', 'ImageURL'],
+    quoted: true, // Quote all fields to prevent CSV injection
+    quoted_string: true
   });
 
+  // Append to file
   await fs.appendFile(CSV_PATH, csvRows);
+
+  // Validate again after appending
+  console.log('   Validating CSV file after append...');
+  await validateCSVFile();
 }
 
 // Update domain tracker
