@@ -3,7 +3,7 @@
 :root {
     --primary: #a78bfa;          /* Soft lavender */
     --secondary: #86efac;        /* Soft sage green */
-    --accent: #fda4af;           /* Dusty rose */
+    --accent: #1f2937;           /* Deep charcoal black */
     --background: #fdfcfb;       /* Warm cream */
     --surface: #ffffff;          /* Pure white */
     --text-dark: #374151;        /* Soft charcoal */
@@ -147,7 +147,7 @@ h1 {
 
 #question-container {
     margin-bottom: 35px;
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.05) 0%, rgba(253, 164, 175, 0.05) 100%);
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.05) 0%, rgba(31, 41, 55, 0.05) 100%);
     padding: 35px;
     border-radius: 16px;
     border: 1px solid rgba(167, 139, 250, 0.15);
@@ -199,7 +199,7 @@ h1 {
 
 .option-btn:hover {
     border-color: var(--primary);
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(253, 164, 175, 0.08) 100%);
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(31, 41, 55, 0.08) 100%);
     transform: translateX(8px);
     box-shadow: 0 8px 24px var(--shadow);
 }
@@ -356,13 +356,13 @@ h1 {
 }
 
 #skip-btn {
-    background: linear-gradient(135deg, var(--accent) 0%, #fb7185 100%);
-    box-shadow: 0 4px 16px rgba(253, 164, 175, 0.3);
+    background: linear-gradient(135deg, var(--accent) 0%, #111827 100%);
+    box-shadow: 0 4px 16px rgba(31, 41, 55, 0.3);
 }
 
 #skip-btn:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(253, 164, 175, 0.4);
+    box-shadow: 0 8px 24px rgba(31, 41, 55, 0.4);
 }
 
 #skip-btn:active {
