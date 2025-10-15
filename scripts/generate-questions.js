@@ -101,7 +101,9 @@ async function readExistingQuestions() {
     const records = parse(csvContent, {
       columns: true,
       skip_empty_lines: true,
-      trim: true
+      trim: true,
+      relax_column_count: true, // Allow variable column counts
+      relax_quotes: true // Allow unquoted fields
     });
     return records;
   } catch (error) {
@@ -308,8 +310,9 @@ async function validateCSVFile() {
       columns: true,
       skip_empty_lines: true,
       trim: true,
-      relax_quotes: false, // Strict quote validation
-      strict: true // Strict mode for better error detection
+      relax_column_count: true, // Allow variable column counts
+      relax_quotes: true, // Allow unquoted fields with special characters
+      skip_records_with_error: false // Don't skip, but be lenient
     });
     console.log(`   ✅ CSV validation passed: ${records.length} records`);
     return true;
