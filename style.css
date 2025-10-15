@@ -82,18 +82,41 @@ h1 {
     color: #333333;
 }
 
-#next-btn {
-    background-color: #007bff;
+#navigation-buttons {
+    margin-top: 20px;
+}
+
+#next-btn, #prev-btn, #skip-btn {
     color: #ffffff;
     border: none;
     border-radius: 5px;
     padding: 10px 20px;
     font-size: 1.1em;
     cursor: pointer;
-    margin-top: 20px;
     transition: background-color 0.3s;
+}
+
+#next-btn {
+    background-color: #007bff;
 }
 
 #next-btn:hover {
     background-color: #0056b3;
+}
+
+#prev-btn {
+    background-color: #6c757d;
+}
+
+#prev-btn:hover {
+    background-color: #5a6268;
+}
+
+#skip-btn {
+    background-color: #ffc107;
+    color: #000;
+}
+
+#skip-btn:hover {
+    background-color: #e0a800;
 }

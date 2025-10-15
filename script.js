@@ -6,11 +6,14 @@ const optionsContainer = document.getElementById('options-container');
 const explanationContainer = document.getElementById('explanation-container');
 const explanationText = document.getElementById('explanation-text');
 const nextButton = document.getElementById('next-btn');
+const prevButton = document.getElementById('prev-btn');
+const skipButton = document.getElementById('skip-btn');
 const progressBar = document.getElementById('progress-bar');
 
 let currentQuestionIndex = 0;
 let answeredQuestions = JSON.parse(localStorage.getItem('answeredQuestions')) || [];
 let dailyQuestions = JSON.parse(localStorage.getItem('dailyQuestions')) || [];
+let sessionAnswers = {}; // Track answers for current session {questionID: selectedOption}
 let lastUpdateDate = localStorage.getItem('lastUpdateDate') || '';
 let currentScore = 0;
 let totalQuestions = 0;
@@ -159,7 +162,15 @@ function loadQuestion() {
 
     const currentQuestion = todaysQuestions[currentQuestionIndex];
     questionText.textContent = currentQuestion.question;
-    progressBar.textContent = `Question ${currentQuestionIndex + 1}/10 | Score: ${currentScore}/${currentQuestionIndex}`;
+
+    // Count how many questions have been answered (not just viewed)
+    const answeredCount = Object.keys(sessionAnswers).length;
+    progressBar.textContent = `Question ${currentQuestionIndex + 1}/10 | Score: ${currentScore}/${answeredCount}`;
+
+    // Update button visibility
+    prevButton.style.display = currentQuestionIndex > 0 ? 'block' : 'none';
+    skipButton.style.display = 'block';
+    nextButton.style.display = 'none';
 
     optionsContainer.innerHTML = '';
     currentQuestion.options.forEach((option, index) => {
@@ -170,19 +181,51 @@ function loadQuestion() {
         button.addEventListener('click', () => checkAnswer(option, button));
         optionsContainer.appendChild(button);
     });
-    explanationContainer.style.display = 'none';
-    nextButton.style.display = 'none';
+
+    // Check if this question was already answered in this session
+    const previousAnswer = sessionAnswers[currentQuestion.ID];
+    if (previousAnswer !== undefined) {
+        // Show previous answer
+        const buttons = Array.from(optionsContainer.children);
+        buttons.forEach(btn => {
+            const btnText = btn.textContent.substring(3); // Remove "A. " prefix
+            if (btnText === previousAnswer) {
+                if (previousAnswer === currentQuestion.answer) {
+                    btn.classList.add('correct');
+                } else {
+                    btn.classList.add('incorrect');
+                }
+            }
+            if (btnText === currentQuestion.answer) {
+                btn.classList.add('correct');
+            }
+            btn.disabled = true;
+        });
+        showExplanation(currentQuestion.explanation);
+        nextButton.style.display = 'block';
+        skipButton.style.display = 'none';
+    } else {
+        explanationContainer.style.display = 'none';
+    }
 }
 
 function checkAnswer(selectedOption, button) {
     const todaysQuestions = getTodaysQuestions();
     const currentQuestion = todaysQuestions[currentQuestionIndex];
 
-    totalQuestions++;
+    // Only count if this question hasn't been answered before
+    if (sessionAnswers[currentQuestion.ID] === undefined) {
+        totalQuestions++;
+        if (selectedOption === currentQuestion.answer) {
+            currentScore++;
+        }
+    }
+
+    // Store the answer in session
+    sessionAnswers[currentQuestion.ID] = selectedOption;
 
     if (selectedOption === currentQuestion.answer) {
         button.classList.add('correct');
-        currentScore++;
     } else {
         button.classList.add('incorrect');
         // Highlight the correct answer
@@ -196,6 +239,7 @@ function checkAnswer(selectedOption, button) {
     showExplanation(currentQuestion.explanation);
     disableOptions();
     nextButton.style.display = 'block';
+    skipButton.style.display = 'none';
 }
 
 function showExplanation(explanation) {
@@ -228,7 +272,7 @@ function nextQuestion() {
     const todaysQuestions = getTodaysQuestions();
     const currentQuestion = todaysQuestions[currentQuestionIndex];
 
-    // Mark question as answered
+    // Mark question as answered (for tracking across days)
     if (!answeredQuestions.includes(currentQuestion.ID)) {
         answeredQuestions.push(currentQuestion.ID);
         localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions));
@@ -239,8 +283,24 @@ function nextQuestion() {
     loadQuestion();
 }
 
+function previousQuestion() {
+    if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
+        enableOptions();
+        loadQuestion();
+    }
+}
+
+function skipQuestion() {
+    // Skip without answering - just move to next question
+    currentQuestionIndex++;
+    enableOptions();
+    loadQuestion();
+}
+
 function showCompletion() {
-    const percentage = Math.round((currentScore / 10) * 100);
+    const answeredCount = Object.keys(sessionAnswers).length;
+    const percentage = answeredCount > 0 ? Math.round((currentScore / answeredCount) * 100) : 0;
     let grade = '';
     let message = '';
 
@@ -261,6 +321,11 @@ function showCompletion() {
         message = 'Keep studying! Review the basics. 💪';
     }
 
+    const skippedCount = 10 - answeredCount;
+    const skippedMessage = skippedCount > 0
+        ? `<p style="color: #ff9800;">⚠️ You skipped ${skippedCount} question${skippedCount !== 1 ? 's' : ''}. Consider reviewing them!</p>`
+        : '';
+
     // Calculate progress stats
     const totalQuestionsInBank = questions.length;
     const questionsAnswered = answeredQuestions.length;
@@ -280,8 +345,9 @@ function showCompletion() {
         <div style="text-align: center;">
             <h2>Quiz Complete! 🎯</h2>
             <div style="font-size: 48px; margin: 20px 0;">${grade}</div>
-            <h3>Final Score: ${currentScore}/10 (${percentage}%)</h3>
+            <h3>Final Score: ${currentScore}/${answeredCount} (${percentage}%)</h3>
             <p style="font-size: 18px; color: #666;">${message}</p>
+            ${skippedMessage}
             ${progressMessage}
             <p style="margin-top: 30px;">Come back tomorrow for 10 new questions!</p>
         </div>
@@ -311,6 +377,8 @@ function resetProgress() {
 }
 
 nextButton.addEventListener('click', nextQuestion);
+prevButton.addEventListener('click', previousQuestion);
+skipButton.addEventListener('click', skipQuestion);
 
 // Initialize daily questions and load first question
 (async () => {
