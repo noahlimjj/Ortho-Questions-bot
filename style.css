@@ -1,122 +1,375 @@
+/* Retro Gaming Theme */
+
 body {
-    font-family: Arial, sans-serif;
-    background-color: #f4f7f6;
+    font-family: 'Press Start 2P', cursive;
+    background: linear-gradient(180deg, #0a0e27 0%, #1a1f4e 100%);
+    background-attachment: fixed;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
     margin: 0;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Starfield effect */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image:
+        radial-gradient(2px 2px at 20% 30%, white, transparent),
+        radial-gradient(2px 2px at 60% 70%, white, transparent),
+        radial-gradient(1px 1px at 50% 50%, white, transparent),
+        radial-gradient(1px 1px at 80% 10%, white, transparent),
+        radial-gradient(2px 2px at 90% 60%, white, transparent),
+        radial-gradient(1px 1px at 33% 80%, white, transparent);
+    background-size: 200% 200%;
+    background-position: 0% 0%;
+    opacity: 0.3;
+    z-index: 0;
 }
 
 .quiz-container {
-    background-color: #ffffff;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #1a1f4e 0%, #0f1233 100%);
+    border: 4px solid #00ffff;
+    border-radius: 0;
+    box-shadow:
+        0 0 20px #00ffff,
+        0 0 40px rgba(0, 255, 255, 0.5),
+        inset 0 0 60px rgba(0, 0, 0, 0.5);
     width: 90%;
-    max-width: 600px;
+    max-width: 700px;
     padding: 30px;
     text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+/* Corner decorations */
+.quiz-container::before,
+.quiz-container::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #ff00ff;
+}
+
+.quiz-container::before {
+    top: -3px;
+    left: -3px;
+    border-right: none;
+    border-bottom: none;
+}
+
+.quiz-container::after {
+    bottom: -3px;
+    right: -3px;
+    border-left: none;
+    border-top: none;
 }
 
 h1 {
-    color: #0056b3;
+    color: #00ffff;
+    text-shadow:
+        0 0 10px #00ffff,
+        0 0 20px #00ffff,
+        0 0 30px #00ffff,
+        2px 2px 0 #ff00ff;
+    font-size: 1.8em;
     margin-bottom: 20px;
+    letter-spacing: 2px;
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from {
+        text-shadow:
+            0 0 10px #00ffff,
+            0 0 20px #00ffff,
+            0 0 30px #00ffff,
+            2px 2px 0 #ff00ff;
+    }
+    to {
+        text-shadow:
+            0 0 20px #00ffff,
+            0 0 30px #00ffff,
+            0 0 40px #00ffff,
+            2px 2px 0 #ff00ff;
+    }
+}
+
+#progress-bar {
+    color: #ffff00 !important;
+    text-shadow: 0 0 5px #ffff00;
+    font-size: 0.6em;
+    margin-bottom: 25px !important;
+    font-weight: bold !important;
+    letter-spacing: 1px;
+}
+
+#debug-info {
+    margin-bottom: 15px;
+}
+
+#clear-storage-debug {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.4em !important;
+    padding: 8px 12px !important;
+    background: #1a1f4e !important;
+    border: 2px solid #666 !important;
+    color: #999 !important;
+    border-radius: 0 !important;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+#clear-storage-debug:hover {
+    border-color: #ff00ff !important;
+    color: #ff00ff !important;
+    box-shadow: 0 0 10px #ff00ff;
 }
 
 #question-container {
-    margin-bottom: 20px;
+    margin-bottom: 25px;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 20px;
+    border: 2px solid #ff00ff;
+    box-shadow:
+        0 0 10px rgba(255, 0, 255, 0.5),
+        inset 0 0 20px rgba(0, 0, 0, 0.5);
 }
 
 #question-text {
-    font-size: 1.2em;
-    color: #333333;
+    font-size: 0.7em;
+    color: #ffffff;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+    line-height: 1.6;
+    text-align: left;
 }
 
 #options-container {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 15px;
+    margin-bottom: 25px;
 }
 
 .option-btn {
-    background-color: #e0f2f7;
-    border: 2px solid #b3e0f2;
-    border-radius: 5px;
+    font-family: 'Press Start 2P', cursive;
+    background: linear-gradient(135deg, #2a2f5e 0%, #1a1f4e 100%);
+    border: 3px solid #00ff00;
+    border-radius: 0;
     padding: 15px;
-    font-size: 1em;
-    color: #0056b3;
+    font-size: 0.6em;
+    color: #00ff00;
     cursor: pointer;
-    transition: background-color 0.3s, border-color 0.3s;
+    transition: all 0.3s;
+    text-align: left;
+    line-height: 1.5;
+    box-shadow:
+        0 0 10px rgba(0, 255, 0, 0.3),
+        inset 0 0 20px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.option-btn::before {
+    content: '►';
+    position: absolute;
+    left: -20px;
+    opacity: 0;
+    transition: all 0.3s;
 }
 
 .option-btn:hover {
-    background-color: #b3e0f2;
-    border-color: #0056b3;
+    background: linear-gradient(135deg, #3a3f6e 0%, #2a2f5e 100%);
+    border-color: #00ffff;
+    color: #00ffff;
+    box-shadow:
+        0 0 20px #00ffff,
+        inset 0 0 20px rgba(0, 255, 255, 0.2);
+    transform: translateX(10px);
+}
+
+.option-btn:hover::before {
+    opacity: 1;
+    left: 10px;
 }
 
 .option-btn.correct {
-    background-color: #d4edda;
-    border-color: #28a745;
-    color: #28a745;
+    background: linear-gradient(135deg, #004400 0%, #002200 100%);
+    border-color: #00ff00;
+    color: #00ff00;
+    box-shadow:
+        0 0 30px #00ff00,
+        inset 0 0 30px rgba(0, 255, 0, 0.3);
+    animation: correctPulse 0.5s ease-in-out;
+}
+
+@keyframes correctPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
 }
 
 .option-btn.incorrect {
-    background-color: #f8d7da;
-    border-color: #dc3545;
-    color: #dc3545;
+    background: linear-gradient(135deg, #440000 0%, #220000 100%);
+    border-color: #ff0000;
+    color: #ff0000;
+    box-shadow:
+        0 0 30px #ff0000,
+        inset 0 0 30px rgba(255, 0, 0, 0.3);
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
 }
 
 #explanation-container {
-    margin-top: 20px;
-    padding: 15px;
-    background-color: #f0f8ff;
-    border: 1px solid #cce5ff;
-    border-radius: 5px;
+    margin-top: 25px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid #ffff00;
+    border-radius: 0;
     text-align: left;
-    display: none; /* Hidden by default */
+    display: none;
+    box-shadow:
+        0 0 15px rgba(255, 255, 0, 0.4),
+        inset 0 0 20px rgba(0, 0, 0, 0.5);
 }
 
 #explanation-text {
-    font-size: 0.9em;
-    color: #333333;
+    font-size: 0.6em;
+    color: #ffff00;
+    text-shadow: 0 0 5px rgba(255, 255, 0, 0.5);
+    line-height: 1.6;
 }
 
 #navigation-buttons {
-    margin-top: 20px;
+    display: flex;
+    gap: 15px;
+    justify-content: space-between;
+    margin-top: 30px;
 }
 
 #next-btn, #prev-btn, #skip-btn {
+    font-family: 'Press Start 2P', cursive;
     color: #ffffff;
-    border: none;
-    border-radius: 5px;
-    padding: 10px 20px;
-    font-size: 1.1em;
+    border: 3px solid;
+    border-radius: 0;
+    padding: 15px 20px;
+    font-size: 0.6em;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: all 0.3s;
+    flex: 1;
+    text-shadow: 0 0 5px currentColor;
+    position: relative;
+    overflow: hidden;
 }
 
 #next-btn {
-    background-color: #007bff;
+    background: linear-gradient(135deg, #0066cc 0%, #0044aa 100%);
+    border-color: #00ffff;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
 }
 
 #next-btn:hover {
-    background-color: #0056b3;
+    background: linear-gradient(135deg, #0088ee 0%, #0066cc 100%);
+    box-shadow: 0 0 20px #00ffff;
+    transform: translateY(-3px);
 }
 
 #prev-btn {
-    background-color: #6c757d;
+    background: linear-gradient(135deg, #666666 0%, #444444 100%);
+    border-color: #aaaaaa;
+    box-shadow: 0 0 10px rgba(170, 170, 170, 0.5);
 }
 
 #prev-btn:hover {
-    background-color: #5a6268;
+    background: linear-gradient(135deg, #888888 0%, #666666 100%);
+    box-shadow: 0 0 20px #aaaaaa;
+    transform: translateY(-3px);
 }
 
 #skip-btn {
-    background-color: #ffc107;
-    color: #000;
+    background: linear-gradient(135deg, #cc9900 0%, #aa7700 100%);
+    border-color: #ffff00;
+    color: #000000;
+    text-shadow: 0 0 5px #ffff00;
+    box-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
 }
 
 #skip-btn:hover {
-    background-color: #e0a800;
+    background: linear-gradient(135deg, #eeaa00 0%, #cc9900 100%);
+    box-shadow: 0 0 20px #ffff00;
+    transform: translateY(-3px);
+}
+
+/* Button press effect */
+#next-btn:active, #prev-btn:active, #skip-btn:active {
+    transform: translateY(0px);
+    box-shadow: 0 0 5px currentColor;
+}
+
+/* Scanlines effect */
+.quiz-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.15),
+        rgba(0, 0, 0, 0.15) 1px,
+        transparent 1px,
+        transparent 2px
+    );
+    pointer-events: none;
+    z-index: 1000;
+    border: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    h1 {
+        font-size: 1.2em;
+    }
+
+    #question-text {
+        font-size: 0.6em;
+    }
+
+    .option-btn {
+        font-size: 0.5em;
+        padding: 12px;
+    }
+
+    #next-btn, #prev-btn, #skip-btn {
+        font-size: 0.5em;
+        padding: 12px 15px;
+    }
+
+    #explanation-text {
+        font-size: 0.5em;
+    }
+
+    #progress-bar {
+        font-size: 0.5em;
+    }
+}
+
+/* Pixel perfect borders for extra retro feel */
+* {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
 }
