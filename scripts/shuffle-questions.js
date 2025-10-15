@@ -33,14 +33,7 @@ async function shuffleQuestions() {
       const j = Math.floor(Math.random() * (i + 1));
       [records[i], records[j]] = [records[j], records[i]];
     }
-    console.log('   ✅ Questions shuffled randomly\n');
-
-    // Re-sequence IDs to maintain order 1-N
-    console.log('🔢 Re-sequencing question IDs...');
-    records.forEach((record, index) => {
-      record.ID = (index + 1).toString();
-    });
-    console.log(`   ✅ IDs now range from 1 to ${records.length}\n`);
+    console.log('   ✅ Questions shuffled randomly (IDs preserved)\n');
 
     // Write shuffled CSV
     console.log('💾 Writing shuffled CSV...');
@@ -66,9 +59,10 @@ async function shuffleQuestions() {
 
     console.log('✨ Summary:');
     console.log(`   Total questions: ${verifyRecords.length}`);
-    console.log(`   First question: ${verifyRecords[0].Question.substring(0, 60)}...`);
-    console.log(`   Last question: ${verifyRecords[verifyRecords.length - 1].Question.substring(0, 60)}...`);
+    console.log(`   First question ID: ${verifyRecords[0].ID} - ${verifyRecords[0].Question.substring(0, 50)}...`);
+    console.log(`   Last question ID: ${verifyRecords[verifyRecords.length - 1].ID} - ${verifyRecords[verifyRecords.length - 1].Question.substring(0, 50)}...`);
     console.log(`\n🎉 Questions have been randomly shuffled!`);
+    console.log(`   Original IDs preserved for tracking`);
     console.log(`   Backup available at: ${backupPath}`);
 
   } catch (error) {
