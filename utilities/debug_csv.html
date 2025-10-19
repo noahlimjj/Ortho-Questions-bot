@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug CSV Parser</title>
+</head>
+<body>
+    <h1>CSV Debug</h1>
+    <div id="output"></div>
+    <script>
+        // Copy the parseCSV function from script.js
+        function parseCSV(text) {
+            const parsed = (str => {
+                const arr = [];
+                let quote = false;
+                for (let row = 0, col = 0, c = 0; c < str.length; c++) {
+                    let cc = str[c], nc = str[c+1];
+                    arr[row] = arr[row] || [];
+                    arr[row][col] = arr[row][col] || '';
+                    if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; continue; }
+                    if (cc == '"') { quote = !quote; continue; }
+                    if (cc == ',' && !quote) { ++col; continue; }
+                    if (cc == '\r' && nc == '\n' && !quote) { ++row; col = 0; ++c; continue; }
+                    if (cc == '\n' && !quote) { ++row; col = 0; continue; }
+                    if (cc == '\r' && !quote) { ++row; col = 0; continue; }
+                    arr[row][col] += cc;
+                }
+                return arr;
+            })(text);
+
+            const headers = parsed[0].map(h => h.trim());
+            const idIndex = headers.indexOf('ID');
+            const questionIndex = headers.indexOf('Question');
+            const optionAIndex = headers.indexOf('OptionA');
+            const optionBIndex = headers.indexOf('OptionB');
+            const optionCIndex = headers.indexOf('OptionC');
+            const optionDIndex = headers.indexOf('OptionD');
+            const optionEIndex = headers.indexOf('OptionE');
+            const answerIndex = headers.indexOf('CorrectAnswer');
+            const explanationIndex = headers.indexOf('Explanation');
+
+            return parsed.slice(1).map(row => {
+                const options = [
+                    row[optionAIndex],
+                    row[optionBIndex],
+                    row[optionCIndex],
+                    row[optionDIndex],
+                    row[optionEIndex],
+                ];
+
+                let correctAnswerText = '';
+                const correctLetter = row[answerIndex];
+                if (correctLetter === 'A') correctAnswerText = row[optionAIndex];
+                else if (correctLetter === 'B') correctAnswerText = row[optionBIndex];
+                else if (correctLetter === 'C') correctAnswerText = row[optionCIndex];
+                else if (correctLetter === 'D') correctAnswerText = row[optionDIndex];
+                else if (correctLetter === 'E') correctAnswerText = row[optionEIndex];
+
+                return {
+                    ID: parseInt(row[idIndex], 10),
+                    question: row[questionIndex],
+                    options: options.filter(o => o && o.trim() !== ''),
+                    answer: correctAnswerText,
+                    explanation: row[explanationIndex]
+                };
+            });
+        }
+
+        async function loadAndDebug() {
+            try {
+                const response = await fetch('ortho_questions.csv');
+                const csvText = await response.text();
+                const questions = parseCSV(csvText);
+
+                const output = document.getElementById('output');
+                output.innerHTML = `
+                    <p><strong>Total questions parsed:</strong> ${questions.length}</p>
+                    <p><strong>Questions with valid IDs:</strong> ${questions.filter(q => !isNaN(q.ID)).length}</p>
+                    <p><strong>Questions with all 5 options:</strong> ${questions.filter(q => q.options.length === 5).length}</p>
+                    <p><strong>Questions with 4 options:</strong> ${questions.filter(q => q.options.length === 4).length}</p>
+                    <p><strong>Questions with fewer than 4 options:</strong> ${questions.filter(q => q.options.length < 4).length}</p>
+                    <hr>
+                    <h2>All Question IDs:</h2>
+                    <p>${questions.map(q => q.ID).join(', ')}</p>
+                    <hr>
+                    <h2>Questions with issues:</h2>
+                `;
+
+                questions.forEach((q, idx) => {
+                    if (isNaN(q.ID) || q.options.length < 4 || !q.question || !q.answer) {
+                        output.innerHTML += `
+                            <div style="border: 1px solid red; padding: 10px; margin: 10px 0;">
+                                <p><strong>Index:</strong> ${idx}</p>
+                                <p><strong>ID:</strong> ${q.ID}</p>
+                                <p><strong>Question:</strong> ${q.question ? q.question.substring(0, 100) : 'MISSING'}</p>
+                                <p><strong>Options count:</strong> ${q.options.length}</p>
+                                <p><strong>Answer:</strong> ${q.answer || 'MISSING'}</p>
+                            </div>
+                        `;
+                    }
+                });
+            } catch (error) {
+                document.getElementById('output').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+
+        loadAndDebug();
+    </script>
+</body>
+</html>

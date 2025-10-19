@@ -22,8 +22,17 @@ __pycache__/
 # Temporary files
 *.tmp
 *.temp
-fix_csv*.py
-debug_csv.html
+*.backup
+new_questions_fixed.csv
+ortho_questions_dedup.csv
+screenshot_questions.csv
+extract_questions.py
+
+# PDF files
+*.pdf
+
+# Work in progress folders
+Difficult questions/
 
 # Logs
 npm-debug.log*

@@ -43,15 +43,16 @@ Then visit `http://localhost:8000`
 
 ### For Maintainers (Automated System)
 
-The bot automatically generates new questions:
+The bot automatically generates, reviews, and merges new questions:
 
 - **Frequency**: Daily at 2 AM UTC
-- **AI Model**: Perplexity API (llama-3.1-sonar-large-128k-online)
-- **Output**: Pull Request with 10 new questions
-- **Review**: Manual approval before questions go live
-- **Cost**: ~$0.15/month
+- **AI Generation**: Perplexity API (Sonar Pro model)
+- **AI Validation**: Claude API (Sonnet 4) reviews each question
+- **Auto-Filtering**: Questions scoring ≥9.0/10 are kept, <9.0 removed
+- **Auto-Merge**: PRs with passing questions merge automatically
+- **Cost**: ~$0.20/month
 
-See [AUTOMATION_SETUP.md](AUTOMATION_SETUP.md) for setup instructions.
+See [docs/AUTOMATION_SETUP.md](docs/AUTOMATION_SETUP.md) for setup instructions.
 
 ## Project Structure
 
@@ -59,16 +60,34 @@ See [AUTOMATION_SETUP.md](AUTOMATION_SETUP.md) for setup instructions.
 ├── index.html                          # Main quiz interface
 ├── script.js                           # Quiz logic and localStorage
 ├── style.css                           # UI styling
-├── ortho_questions.csv                 # Question database
+├── admin.html                          # Admin debugging interface
+├── ortho_questions.csv                 # Question database (main)
 ├── QUESTION_BUILDER_PROMPT.md          # AI prompt template
-├── AUTOMATION_SETUP.md                 # Automation guide
-├── amboss2csv.md                       # Import guide for text questions
+├── README.md                           # This file
+├── package.json                        # Node.js dependencies
 ├── .github/
 │   └── workflows/
-│       └── daily-questions.yml         # GitHub Actions workflow
-└── scripts/
-    ├── generate-questions.js           # Question generator
-    └── domain-tracker.json             # Domain rotation tracker
+│       ├── daily-questions.yml         # Daily question generation
+│       └── weekly-review.yml           # Automated PR review
+├── scripts/
+│   ├── generate-questions.js           # Question generator
+│   ├── review-pr.js                    # Automated PR reviewer
+│   ├── claude-validator-prompt.md      # Question validation prompt
+│   ├── domain-tracker.json             # Domain rotation state
+│   ├── validate-csv.js                 # CSV validator
+│   └── shuffle-questions.js            # Question randomizer
+├── docs/
+│   ├── AUTOMATION_SETUP.md             # Setup guide
+│   └── gemini.md                       # Alternative AI notes
+├── utilities/
+│   ├── parser.py                       # Text parsing utilities
+│   ├── checker.py                      # CSV checker
+│   ├── debug_csv.html                  # CSV debugging tool
+│   ├── process_screenshots.py          # Screenshot OCR
+│   └── reorder_questions.py            # Question reorderer
+├── archive/
+│   └── fix_csv*.py                     # Old CSV fixing scripts
+└── images/                             # Question images
 ```
 
 ## Setup for Development

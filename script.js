@@ -48,6 +48,7 @@ function parseCSV(text) {
     const optionEIndex = headers.indexOf('OptionE');
     const answerIndex = headers.indexOf('CorrectAnswer');
     const explanationIndex = headers.indexOf('Explanation');
+    const imageUrlIndex = headers.indexOf('ImageURL');
 
     return parsed.slice(1)
         .filter(row => row && row[idIndex] && row[idIndex].trim() !== '') // Skip empty rows
@@ -73,7 +74,8 @@ function parseCSV(text) {
                 question: row[questionIndex],
                 options: options.filter(o => o && o.trim() !== ''),
                 answer: correctAnswerText,
-                explanation: row[explanationIndex]
+                explanation: row[explanationIndex],
+                imageUrl: row[imageUrlIndex] ? row[imageUrlIndex].trim() : null
             };
         })
         .filter(q => !isNaN(q.ID) && q.question && q.answer); // Filter out invalid questions
@@ -162,6 +164,20 @@ function loadQuestion() {
 
     const currentQuestion = todaysQuestions[currentQuestionIndex];
     questionText.textContent = currentQuestion.question;
+
+    // Handle image display
+    const imageElement = document.getElementById('question-image');
+    if (currentQuestion.imageUrl && currentQuestion.imageUrl !== '') {
+        imageElement.src = currentQuestion.imageUrl;
+        imageElement.style.display = 'block';
+        imageElement.onerror = () => {
+            // Hide image if it fails to load
+            imageElement.style.display = 'none';
+            console.warn(`Failed to load image: ${currentQuestion.imageUrl}`);
+        };
+    } else {
+        imageElement.style.display = 'none';
+    }
 
     // Count how many questions have been answered (not just viewed)
     const answeredCount = Object.keys(sessionAnswers).length;

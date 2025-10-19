@@ -55,8 +55,8 @@ async function fixCSV() {
         continue;
       }
 
-      // Validate correct answer
-      if (!['A', 'B', 'C', 'D'].includes(record.CorrectAnswer)) {
+      // Validate correct answer (allow A, B, C, D, or E)
+      if (!['A', 'B', 'C', 'D', 'E'].includes(record.CorrectAnswer)) {
         console.warn(`   ⚠️  Skipping record ${id} with invalid answer: ${record.CorrectAnswer}`);
         skipped++;
         continue;
@@ -70,6 +70,7 @@ async function fixCSV() {
         OptionB: record.OptionB.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim(),
         OptionC: record.OptionC.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim(),
         OptionD: record.OptionD.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim(),
+        OptionE: record.OptionE ? record.OptionE.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() : '',
         CorrectAnswer: record.CorrectAnswer.trim(),
         Explanation: record.Explanation.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim(),
         ImageURL: record.ImageURL || ''
@@ -89,11 +90,15 @@ async function fixCSV() {
     }));
     console.log(`   ✅ IDs now range from 1 to ${resequenced.length}\n`);
 
+    // Count questions with missing Option E
+    const missingOptionE = resequenced.filter(r => !r.OptionE || r.OptionE === '').length;
+    console.log(`   ℹ️  Questions with missing Option E: ${missingOptionE}/${resequenced.length}\n`);
+
     // Write cleaned CSV
     console.log('💾 Writing cleaned CSV...');
     const csvContent = stringify(resequenced, {
       header: true,
-      columns: ['ID', 'Question', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Explanation', 'ImageURL'],
+      columns: ['ID', 'Question', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'OptionE', 'CorrectAnswer', 'Explanation', 'ImageURL'],
       quoted: true,
       quoted_string: true
     });
