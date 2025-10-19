@@ -35,6 +35,7 @@ jobs:
         run: node scripts/generate-questions.js
 
       - name: Create Pull Request
+        id: create-pr
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -57,25 +58,30 @@ jobs:
             - **Workflow**: Daily Questions Generator
             - **Source**: Perplexity API (llama-3.1-sonar-large-128k-online)
 
-            ### What to Review
-            - [ ] Verify all questions have 5 options (A-E)
-            - [ ] Check medical accuracy of questions and explanations
-            - [ ] Ensure no duplicate questions
-            - [ ] Validate CSV formatting
-            - [ ] Confirm difficulty level is appropriate
-
-            ### Next Steps
-            1. Review the generated questions
-            2. Use Claude Code to validate medical accuracy if needed
-            3. Approve and merge if questions meet quality standards
-            4. Questions will automatically appear in the quiz app
+            ### Automated Review
+            This PR will be automatically reviewed by Claude API.
+            - Questions scoring ≥ 9.0/10 will be kept
+            - Questions scoring < 9.0/10 will be removed
+            - PR will auto-merge if any questions pass validation
 
             ---
 
             *This PR was automatically created by the Daily Questions workflow.*
-            *Questions are generated weekly for review and approval.*
+            *Awaiting automated review and validation...*
           labels: |
             automated
             questions
             needs-review
           assignees: ${{ github.repository_owner }}
+
+      - name: Wait for PR to be created
+        if: steps.create-pr.outputs.pull-request-number != ''
+        run: sleep 5
+
+      - name: Trigger Automated Review
+        if: steps.create-pr.outputs.pull-request-number != ''
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/review-pr.js

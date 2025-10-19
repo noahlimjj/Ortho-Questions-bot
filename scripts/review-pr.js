@@ -113,20 +113,33 @@ async function reviewPR(pr) {
   console.log(`   Score: ${validation.overallScore}/${validation.maxScore}`);
   console.log(`   Status: ${validation.passed ? '✅ PASSED' : '❌ FAILED'}\n`);
 
-  // Step 4: Post results as comment
-  console.log('   💬 Posting review comment...');
-  await postReviewComment(pr.number, validation);
+  // Step 4: Filter questions - keep only those with score >= 9.0
+  console.log('   🔍 Filtering questions...');
+  const { passingQuestions, failingQuestions } = await filterQuestions(pr.number, questions, validation);
+  console.log(`   ✅ Passing questions: ${passingQuestions.length}`);
+  console.log(`   ❌ Failing questions: ${failingQuestions.length}\n`);
 
-  // Step 5: Auto-merge if passed
-  if (validation.passed && validation.overallScore >= PASSING_SCORE) {
-    console.log('   ✅ Validation passed - Auto-merging...');
-    // Skip approval step (GitHub Actions can't approve its own PRs)
-    // Just merge directly if validation passed
-    await mergePR(pr.number);
+  // Step 5: Update PR to remove failing questions
+  if (failingQuestions.length > 0 && passingQuestions.length > 0) {
+    console.log('   ✂️  Updating PR to remove failing questions...');
+    await updatePRWithPassingQuestions(pr.number, passingQuestions);
+    console.log('   ✅ PR updated with only passing questions\n');
+  }
+
+  // Step 6: Post results as comment
+  console.log('   💬 Posting review comment...');
+  await postReviewComment(pr.number, validation, passingQuestions.length, failingQuestions.length);
+
+  // Step 7: Auto-merge if we have passing questions
+  if (passingQuestions.length > 0) {
+    console.log('   ✅ Found passing questions - Auto-merging...');
+    // Wait a moment for the commit to be processed
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await mergePR(pr.number, passingQuestions.length, failingQuestions.length);
     console.log('   🎉 PR merged successfully!');
   } else {
-    console.log('   ⚠️  Validation failed - Assigning for manual review...');
-    await assignPRForReview(pr.number);
+    console.log('   ⚠️  No passing questions - Closing PR...');
+    await closePR(pr.number, 'All questions failed validation. No questions to merge.');
   }
 }
 
@@ -152,6 +165,79 @@ async function getPRQuestions(prNumber) {
     .filter(line => line.length > 0 && !line.startsWith('ID,Question')); // Skip header
 
   return addedLines;
+}
+
+async function filterQuestions(prNumber, questions, validation) {
+  const passingQuestions = [];
+  const failingQuestions = [];
+
+  // Get question reviews and filter by score
+  if (validation.questionReviews && validation.questionReviews.length > 0) {
+    validation.questionReviews.forEach((review, index) => {
+      if (review.score >= 9.0) {
+        passingQuestions.push(questions[index]);
+      } else {
+        failingQuestions.push(questions[index]);
+      }
+    });
+  } else {
+    // If no individual reviews, use overall score
+    if (validation.overallScore >= 9.0) {
+      passingQuestions.push(...questions);
+    } else {
+      failingQuestions.push(...questions);
+    }
+  }
+
+  return { passingQuestions, failingQuestions };
+}
+
+async function updatePRWithPassingQuestions(prNumber, passingQuestions) {
+  // Get the current branch for this PR
+  const { data: pr } = await octokit.pulls.get({
+    owner: REPO_OWNER,
+    repo: REPO_NAME,
+    pull_number: prNumber
+  });
+
+  const branch = pr.head.ref;
+
+  // Get the current CSV file from main branch
+  let mainCSV;
+  try {
+    const { data: mainFile } = await octokit.repos.getContent({
+      owner: REPO_OWNER,
+      repo: REPO_NAME,
+      path: 'ortho_questions.csv',
+      ref: 'main'
+    });
+    mainCSV = Buffer.from(mainFile.content, 'base64').toString('utf-8');
+  } catch (error) {
+    console.error('Error getting main CSV:', error.message);
+    throw error;
+  }
+
+  // Append only passing questions
+  const updatedCSV = mainCSV + passingQuestions.join('\n') + '\n';
+
+  // Get the current file SHA from the PR branch
+  const { data: branchFile } = await octokit.repos.getContent({
+    owner: REPO_OWNER,
+    repo: REPO_NAME,
+    path: 'ortho_questions.csv',
+    ref: branch
+  });
+
+  // Update the file on the PR branch
+  await octokit.repos.createOrUpdateFileContents({
+    owner: REPO_OWNER,
+    repo: REPO_NAME,
+    path: 'ortho_questions.csv',
+    message: '🔍 Remove failing questions - keep only validated questions',
+    content: Buffer.from(updatedCSV).toString('base64'),
+    branch: branch,
+    sha: branchFile.sha
+  });
 }
 
 async function validateWithClaude(promptTemplate, questions) {
@@ -193,23 +279,26 @@ async function validateWithClaude(promptTemplate, questions) {
   }
 }
 
-async function postReviewComment(prNumber, validation) {
-  const { passed, overallScore, maxScore, summary, questionReviews, criticalIssues, recommendations } = validation;
+async function postReviewComment(prNumber, validation, passingCount, failingCount) {
+  const { overallScore, maxScore, summary, questionReviews, criticalIssues, recommendations } = validation;
 
-  const status = passed ? '✅ PASSED' : '❌ FAILED';
-  const emoji = passed ? '🎉' : '⚠️';
+  const emoji = passingCount > 0 ? '🎉' : '⚠️';
+  const totalQuestions = passingCount + failingCount;
 
   let comment = `## ${emoji} Automated Review Results\n\n`;
-  comment += `**Status:** ${status}\n`;
-  comment += `**Overall Score:** ${overallScore.toFixed(1)}/${maxScore} ${passed ? '(Auto-merge threshold: ≥9.0)' : '(Below auto-merge threshold)'}\n\n`;
+  comment += `**Questions Reviewed:** ${totalQuestions}\n`;
+  comment += `**✅ Passing Questions:** ${passingCount} (score ≥ 9.0)\n`;
+  comment += `**❌ Failing Questions:** ${failingCount} (score < 9.0)\n`;
+  comment += `**Overall Score:** ${overallScore.toFixed(1)}/${maxScore}\n\n`;
   comment += `### Summary\n${summary}\n\n`;
 
   // Question-by-question review
   if (questionReviews && questionReviews.length > 0) {
     comment += `### Question Reviews\n\n`;
     for (const review of questionReviews) {
-      const qStatus = review.passed ? '✅' : '❌';
-      comment += `${qStatus} **Question ${review.questionId}** - Score: ${review.score}/10\n`;
+      const qStatus = review.score >= 9.0 ? '✅' : '❌';
+      const action = review.score >= 9.0 ? 'KEPT' : 'REMOVED';
+      comment += `${qStatus} **Question ${review.questionId}** - Score: ${review.score}/10 - **${action}**\n`;
       if (review.issues && review.issues.length > 0) {
         comment += `  - **Issues:**\n`;
         review.issues.forEach(issue => comment += `    - ${issue}\n`);
@@ -223,7 +312,7 @@ async function postReviewComment(prNumber, validation) {
 
   // Critical issues
   if (criticalIssues && criticalIssues.length > 0) {
-    comment += `### 🚨 Critical Issues\n\n`;
+    comment += `### 🚨 Critical Issues (Questions Removed)\n\n`;
     criticalIssues.forEach(issue => comment += `- ${issue}\n`);
     comment += '\n';
   }
@@ -236,10 +325,16 @@ async function postReviewComment(prNumber, validation) {
   }
 
   // Action taken
-  if (passed) {
-    comment += `---\n\n✨ **Action Taken:** This PR has been automatically merged after passing validation.\n\n`;
+  comment += `---\n\n`;
+  if (passingCount > 0 && failingCount > 0) {
+    comment += `✨ **Action Taken:** \n`;
+    comment += `- Removed ${failingCount} question${failingCount !== 1 ? 's' : ''} with scores below 9.0\n`;
+    comment += `- Kept ${passingCount} question${passingCount !== 1 ? 's' : ''} that passed validation\n`;
+    comment += `- **PR automatically merged** with passing questions only\n\n`;
+  } else if (passingCount > 0) {
+    comment += `✨ **Action Taken:** All questions passed validation. PR automatically merged.\n\n`;
   } else {
-    comment += `---\n\n⚠️ **Action Required:** This PR requires manual review due to validation issues. Please review the questions and address the issues above before merging.\n\n`;
+    comment += `❌ **Action Taken:** All questions failed validation. PR will be closed.\n\n`;
   }
 
   comment += `*Reviewed by Claude API (claude-sonnet-4) on ${new Date().toISOString()}*`;
@@ -263,14 +358,39 @@ async function approvePR(prNumber) {
   });
 }
 
-async function mergePR(prNumber) {
+async function mergePR(prNumber, passingCount, failingCount) {
+  let commitMessage = 'Questions validated by Claude API and automatically merged.\n\n';
+  commitMessage += `✅ ${passingCount} question${passingCount !== 1 ? 's' : ''} passed validation\n`;
+  if (failingCount > 0) {
+    commitMessage += `❌ ${failingCount} question${failingCount !== 1 ? 's' : ''} removed due to low scores\n\n`;
+  }
+  commitMessage += '🤖 Automated review and merge via GitHub Actions';
+
   await octokit.pulls.merge({
     owner: REPO_OWNER,
     repo: REPO_NAME,
     pull_number: prNumber,
     merge_method: 'squash',
-    commit_title: '🤖 Auto-merge: Add validated orthopedic questions',
-    commit_message: 'Questions validated by Claude API and automatically merged.\n\n🤖 Automated review and merge via GitHub Actions'
+    commit_title: `🤖 Auto-merge: Add ${passingCount} validated orthopedic question${passingCount !== 1 ? 's' : ''}`,
+    commit_message: commitMessage
+  });
+}
+
+async function closePR(prNumber, reason) {
+  // Add comment explaining closure
+  await octokit.issues.createComment({
+    owner: REPO_OWNER,
+    repo: REPO_NAME,
+    issue_number: prNumber,
+    body: `## 🚫 PR Closed\n\n${reason}\n\nNo questions were added to the database.`
+  });
+
+  // Close the PR
+  await octokit.pulls.update({
+    owner: REPO_OWNER,
+    repo: REPO_NAME,
+    pull_number: prNumber,
+    state: 'closed'
   });
 }
 
