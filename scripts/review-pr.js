@@ -135,6 +135,18 @@ async function reviewPR(pr) {
     console.log('   ✅ Found passing questions - Auto-merging...');
     // Wait a moment for the commit to be processed
     await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Try to update branch from main to resolve conflicts
+    try {
+      console.log('   🔄 Updating branch from main...');
+      await updateBranchFromMain(pr.number);
+      console.log('   ✅ Branch updated successfully');
+      // Wait a moment for GitHub to process the update
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    } catch (error) {
+      console.log(`   ⚠️  Could not update branch: ${error.message}`);
+    }
+
     await mergePR(pr.number, passingQuestions.length, failingQuestions.length);
     console.log('   🎉 PR merged successfully!');
   } else {
@@ -391,6 +403,15 @@ async function closePR(prNumber, reason) {
     repo: REPO_NAME,
     pull_number: prNumber,
     state: 'closed'
+  });
+}
+
+async function updateBranchFromMain(prNumber) {
+  // Use GitHub's update branch API
+  await octokit.pulls.updateBranch({
+    owner: REPO_OWNER,
+    repo: REPO_NAME,
+    pull_number: prNumber,
   });
 }
 
