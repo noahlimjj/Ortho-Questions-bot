@@ -14,7 +14,6 @@ let currentQuestionIndex = 0;
 let answeredQuestions = JSON.parse(localStorage.getItem('answeredQuestions')) || [];
 let dailyQuestions = JSON.parse(localStorage.getItem('dailyQuestions')) || [];
 let sessionAnswers = {}; // Track answers for current session {questionID: selectedOption}
-let lastUpdateDate = localStorage.getItem('lastUpdateDate') || '';
 let currentScore = 0;
 let totalQuestions = 0;
 
@@ -49,6 +48,7 @@ function parseCSV(text) {
     const answerIndex = headers.indexOf('CorrectAnswer');
     const explanationIndex = headers.indexOf('Explanation');
     const imageUrlIndex = headers.indexOf('ImageURL');
+    const difficultyIndex = headers.indexOf('Difficulty');
 
     return parsed.slice(1)
         .filter(row => row && row[idIndex] && row[idIndex].trim() !== '') // Skip empty rows
@@ -70,15 +70,16 @@ function parseCSV(text) {
             else if (correctLetter === 'E') correctAnswerText = row[optionEIndex];
 
             return {
-                ID: parseInt(row[idIndex], 10),
+                ID: row[idIndex], // Keep as string to support both numeric and Ch#_Q# formats
                 question: row[questionIndex],
                 options: options.filter(o => o && o.trim() !== ''),
                 answer: correctAnswerText,
                 explanation: row[explanationIndex],
-                imageUrl: row[imageUrlIndex] ? row[imageUrlIndex].trim() : null
+                imageUrl: row[imageUrlIndex] ? row[imageUrlIndex].trim() : null,
+                difficulty: difficultyIndex >= 0 && row[difficultyIndex] ? row[difficultyIndex].trim() : 'Normal'
             };
         })
-        .filter(q => !isNaN(q.ID) && q.question && q.answer); // Filter out invalid questions
+        .filter(q => q.ID && q.question && q.answer); // Filter out invalid questions
 }
 
 
@@ -89,8 +90,6 @@ async function loadQuestions() {
         const csvText = await response.text();
         questions = parseCSV(csvText);
         console.log(`Total questions parsed: ${questions.length}`);
-        console.log('Question IDs:', questions.map(q => q.ID).sort((a,b) => a-b));
-        console.log('Questions with NaN ID:', questions.filter(q => isNaN(q.ID)).length);
     } catch (error) {
         console.error('Error loading or parsing CSV file:', error);
         questionText.textContent = 'Failed to load questions. Please check the console for errors.';
@@ -99,38 +98,24 @@ async function loadQuestions() {
 
 
 async function initializeDaily() {
-    const today = new Date().toDateString();
+    // Get all unanswered questions
+    let availableQuestions = questions.filter(q => !answeredQuestions.includes(q.ID));
+    console.log(`Available questions: ${availableQuestions.length}`);
 
-    if (lastUpdateDate !== today) {
-        // New day - reset daily questions and get 10 new ones
-        let availableQuestions = questions.filter(q => !answeredQuestions.includes(q.ID));
-        console.log(`Available questions: ${availableQuestions.length}`);
-
-        // If no questions available or fewer than 10, reset progress
-        if (availableQuestions.length === 0) {
-            console.log('All questions completed! Resetting progress...');
-            answeredQuestions = [];
-            localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions));
-            availableQuestions = questions; // All questions available again
-        }
-
-        // If fewer than 10 questions remain, warn user but continue
-        if (availableQuestions.length < 10 && availableQuestions.length > 0) {
-            console.log(`Only ${availableQuestions.length} questions remaining before reset`);
-        }
-
-        dailyQuestions = shuffleArray(availableQuestions).slice(0, 10).map(q => q.ID);
-        console.log('Daily question IDs:', dailyQuestions);
-
-        localStorage.setItem('dailyQuestions', JSON.stringify(dailyQuestions));
-        localStorage.setItem('lastUpdateDate', today);
-        lastUpdateDate = today;
-        currentQuestionIndex = 0;
-        currentScore = 0;
-        totalQuestions = 0;
-    } else {
-        console.log('Using existing daily questions:', dailyQuestions);
+    // If no questions available, reset progress and cycle through all questions again
+    if (availableQuestions.length === 0) {
+        console.log('All questions completed! Cycling through again...');
+        answeredQuestions = [];
+        localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions));
+        availableQuestions = questions;
     }
+
+    // Shuffle and use all available questions
+    dailyQuestions = shuffleArray(availableQuestions).map(q => q.ID);
+    console.log(`Questions in queue: ${dailyQuestions.length}`);
+
+    localStorage.setItem('dailyQuestions', JSON.stringify(dailyQuestions));
+    currentQuestionIndex = 0;
 }
 
 function shuffleArray(array) {
@@ -157,12 +142,15 @@ function getTodaysQuestions() {
 function loadQuestion() {
     const todaysQuestions = getTodaysQuestions();
 
+    // If we've reached the end, get more questions and continue seamlessly
     if (currentQuestionIndex >= todaysQuestions.length) {
-        showCompletion();
+        initializeDaily().then(() => loadQuestion());
         return;
     }
 
     const currentQuestion = todaysQuestions[currentQuestionIndex];
+
+    // Display question
     questionText.textContent = currentQuestion.question;
 
     // Handle image display
@@ -181,7 +169,7 @@ function loadQuestion() {
 
     // Count how many questions have been answered (not just viewed)
     const answeredCount = Object.keys(sessionAnswers).length;
-    progressBar.textContent = `Question ${currentQuestionIndex + 1}/10 | Score: ${currentScore}/${answeredCount}`;
+    progressBar.textContent = `Score: ${currentScore}/${answeredCount}`;
 
     // Update button visibility
     prevButton.style.display = currentQuestionIndex > 0 ? 'block' : 'none';
@@ -222,6 +210,12 @@ function loadQuestion() {
         skipButton.style.display = 'none';
     } else {
         explanationContainer.style.display = 'none';
+    }
+
+    // Remove feedback button when loading new question
+    const existingFeedbackBtn = document.getElementById('feedback-btn');
+    if (existingFeedbackBtn) {
+        existingFeedbackBtn.remove();
     }
 }
 
@@ -269,6 +263,16 @@ function showExplanation(explanation) {
         explanationText.style.color = '#999';
     }
     explanationContainer.style.display = 'block';
+
+    // Add feedback button if not already present
+    if (!document.getElementById('feedback-btn')) {
+        const feedbackBtn = document.createElement('button');
+        feedbackBtn.id = 'feedback-btn';
+        feedbackBtn.textContent = '🚩 Report Question';
+        feedbackBtn.className = 'feedback-btn';
+        feedbackBtn.onclick = () => openFeedbackModal();
+        explanationContainer.appendChild(feedbackBtn);
+    }
 }
 
 function disableOptions() {
@@ -286,12 +290,16 @@ function enableOptions() {
 
 function nextQuestion() {
     const todaysQuestions = getTodaysQuestions();
-    const currentQuestion = todaysQuestions[currentQuestionIndex];
 
-    // Mark question as answered (for tracking across days)
-    if (!answeredQuestions.includes(currentQuestion.ID)) {
-        answeredQuestions.push(currentQuestion.ID);
-        localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions));
+    // Only mark if we're not at the end
+    if (currentQuestionIndex < todaysQuestions.length) {
+        const currentQuestion = todaysQuestions[currentQuestionIndex];
+
+        // Mark question as answered (for tracking)
+        if (!answeredQuestions.includes(currentQuestion.ID)) {
+            answeredQuestions.push(currentQuestion.ID);
+            localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions));
+        }
     }
 
     currentQuestionIndex++;
@@ -314,81 +322,9 @@ function skipQuestion() {
     loadQuestion();
 }
 
-function showCompletion() {
-    const answeredCount = Object.keys(sessionAnswers).length;
-    const percentage = answeredCount > 0 ? Math.round((currentScore / answeredCount) * 100) : 0;
-    let grade = '';
-    let message = '';
-
-    if (percentage >= 90) {
-        grade = 'A';
-        message = 'Excellent! Outstanding knowledge of orthopedic surgery! 🏆';
-    } else if (percentage >= 80) {
-        grade = 'B';
-        message = 'Great job! Solid understanding of orthopedics! 🎉';
-    } else if (percentage >= 70) {
-        grade = 'C';
-        message = 'Good work! Keep studying to improve! 📚';
-    } else if (percentage >= 60) {
-        grade = 'D';
-        message = 'Fair performance. More review needed. 📖';
-    } else {
-        grade = 'F';
-        message = 'Keep studying! Review the basics. 💪';
-    }
-
-    const skippedCount = 10 - answeredCount;
-    const skippedMessage = skippedCount > 0
-        ? `<p style="color: #ff9800;">⚠️ You skipped ${skippedCount} question${skippedCount !== 1 ? 's' : ''}. Consider reviewing them!</p>`
-        : '';
-
-    // Calculate progress stats
-    const totalQuestionsInBank = questions.length;
-    const questionsAnswered = answeredQuestions.length;
-    const questionsRemaining = totalQuestionsInBank - questionsAnswered;
-    const progressPercent = Math.round((questionsAnswered / totalQuestionsInBank) * 100);
-
-    let progressMessage = '';
-    if (questionsRemaining === 0) {
-        progressMessage = '<p style="color: #28a745; font-weight: bold;">🎊 You\'ve completed all questions! Progress will reset tomorrow with fresh questions.</p>';
-    } else if (questionsRemaining < 10) {
-        progressMessage = `<p style="color: #ff9800;">⚠️ Only ${questionsRemaining} new questions remaining! Progress will automatically reset when complete.</p>`;
-    } else {
-        progressMessage = `<p style="color: #666;">📊 Progress: ${questionsAnswered}/${totalQuestionsInBank} questions completed (${progressPercent}%)</p>`;
-    }
-
-    questionText.innerHTML = `
-        <div style="text-align: center;">
-            <h2>Quiz Complete! 🎯</h2>
-            <div style="font-size: 48px; margin: 20px 0;">${grade}</div>
-            <h3>Final Score: ${currentScore}/${answeredCount} (${percentage}%)</h3>
-            <p style="font-size: 18px; color: #666;">${message}</p>
-            ${skippedMessage}
-            ${progressMessage}
-            <p style="margin-top: 30px;">Come back tomorrow for 10 new questions!</p>
-        </div>
-    `;
-
-    optionsContainer.innerHTML = '';
-    explanationContainer.style.display = 'none';
-    nextButton.style.display = 'none';
-
-    // Add reset button
-    const resetBtn = document.createElement('button');
-    resetBtn.textContent = 'Reset All Progress';
-    resetBtn.onclick = () => {
-        if (confirm('Reset all progress? This will clear your question history and you can start fresh.')) {
-            resetProgress();
-        }
-    };
-    resetBtn.style.cssText = 'margin-top: 20px; background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1em;';
-    optionsContainer.appendChild(resetBtn);
-}
-
 function resetProgress() {
     localStorage.removeItem('answeredQuestions');
     localStorage.removeItem('dailyQuestions');
-    localStorage.removeItem('lastUpdateDate');
     location.reload();
 }
 
@@ -420,3 +356,130 @@ if (document.getElementById('clear-storage-debug')) {
         }
     });
 }
+
+// Feedback system functions
+function openFeedbackModal() {
+    const todaysQuestions = getTodaysQuestions();
+    const currentQuestion = todaysQuestions[currentQuestionIndex];
+
+    // Create modal HTML
+    const modalHTML = `
+        <div id="feedback-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-modal" onclick="closeFeedbackModal()">&times;</span>
+                <h2>Report Issue with Question</h2>
+                <p><strong>Question ID:</strong> ${currentQuestion.ID}</p>
+                <p><strong>Issue Type:</strong></p>
+                <select id="feedback-type" class="feedback-select">
+                    <option value="unclear">Question is unclear</option>
+                    <option value="wrong-answer">Wrong answer</option>
+                    <option value="wrong-explanation">Wrong/unclear explanation</option>
+                    <option value="typo">Typo or formatting issue</option>
+                    <option value="other">Other issue</option>
+                </select>
+                <p><strong>Additional Details:</strong></p>
+                <textarea id="feedback-details" class="feedback-textarea" placeholder="Please describe the issue..." rows="5"></textarea>
+                <div class="modal-buttons">
+                    <button onclick="closeFeedbackModal()" class="btn-cancel">Cancel</button>
+                    <button onclick="submitFeedback()" class="btn-submit">Submit Feedback</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Add modal to page
+    const existingModal = document.getElementById('feedback-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+function closeFeedbackModal() {
+    const modal = document.getElementById('feedback-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function submitFeedback() {
+    const todaysQuestions = getTodaysQuestions();
+    const currentQuestion = todaysQuestions[currentQuestionIndex];
+    const feedbackType = document.getElementById('feedback-type').value;
+    const feedbackDetails = document.getElementById('feedback-details').value.trim();
+
+    if (!feedbackDetails) {
+        alert('Please provide some details about the issue.');
+        return;
+    }
+
+    // Create feedback object
+    const feedback = {
+        questionID: currentQuestion.ID,
+        question: currentQuestion.question,
+        issueType: feedbackType,
+        details: feedbackDetails,
+        timestamp: new Date().toISOString(),
+        userAnswer: sessionAnswers[currentQuestion.ID] || 'Not answered',
+        correctAnswer: currentQuestion.answer
+    };
+
+    // Store feedback in localStorage for now
+    let allFeedback = JSON.parse(localStorage.getItem('questionFeedback')) || [];
+    allFeedback.push(feedback);
+    localStorage.setItem('questionFeedback', JSON.stringify(allFeedback));
+
+    // Show success message
+    alert('Thank you for your feedback! Your report has been saved locally. The administrator will review it.');
+
+    // Log feedback to console (for development/testing)
+    console.log('Feedback submitted:', feedback);
+    console.log('To create GitHub issue, use this data:', JSON.stringify(feedback, null, 2));
+
+    closeFeedbackModal();
+}
+
+// Function to export feedback to create GitHub issues
+function exportFeedbackForGitHub() {
+    const allFeedback = JSON.parse(localStorage.getItem('questionFeedback')) || [];
+
+    if (allFeedback.length === 0) {
+        console.log('No feedback to export');
+        return;
+    }
+
+    console.log('=== FEEDBACK READY FOR GITHUB ISSUES ===');
+    allFeedback.forEach((feedback, index) => {
+        const issueTitle = `[Question ${feedback.questionID}] ${feedback.issueType}`;
+        const issueBody = `
+**Question ID:** ${feedback.questionID}
+**Issue Type:** ${feedback.issueType}
+**Timestamp:** ${feedback.timestamp}
+
+**Question:**
+${feedback.question}
+
+**User's Answer:** ${feedback.userAnswer}
+**Correct Answer:** ${feedback.correctAnswer}
+
+**Details:**
+${feedback.details}
+
+---
+*Submitted via Ortho Quiz Feedback System*
+        `;
+
+        console.log(`\n--- Issue ${index + 1} ---`);
+        console.log('Title:', issueTitle);
+        console.log('Body:', issueBody);
+    });
+
+    console.log('\n=== END OF FEEDBACK ===');
+    console.log(`Total feedback items: ${allFeedback.length}`);
+}
+
+// Make functions globally accessible
+window.openFeedbackModal = openFeedbackModal;
+window.closeFeedbackModal = closeFeedbackModal;
+window.submitFeedback = submitFeedback;
+window.exportFeedbackForGitHub = exportFeedbackForGitHub;
