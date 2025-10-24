@@ -469,20 +469,20 @@ h1 {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: white;
     border: none;
-    border-radius: 10px;
-    padding: 12px 20px;
-    font-size: 0.95em;
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 0.57em;
     font-weight: 500;
     cursor: pointer;
-    margin-top: 20px;
+    margin-top: 12px;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 2px 7px rgba(59, 130, 246, 0.3);
     width: 100%;
 }
 
 .feedback-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
 .feedback-btn:active {
