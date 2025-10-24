@@ -13,9 +13,12 @@ const progressBar = document.getElementById('progress-bar');
 let currentQuestionIndex = 0;
 let answeredQuestions = JSON.parse(localStorage.getItem('answeredQuestions')) || [];
 let dailyQuestions = JSON.parse(localStorage.getItem('dailyQuestions')) || [];
+let lastDate = localStorage.getItem('lastDate') || '';
+let usedQuestionIDs = JSON.parse(localStorage.getItem('usedQuestionIDs')) || [];
 let sessionAnswers = {}; // Track answers for current session {questionID: selectedOption}
 let currentScore = 0;
 let totalQuestions = 0;
+const QUESTIONS_PER_DAY = 10;
 
 // Function to parse CSV data
 function parseCSV(text) {
@@ -97,25 +100,53 @@ async function loadQuestions() {
 }
 
 
+function getTodaysDate() {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+}
+
 async function initializeDaily() {
-    // Get all unanswered questions
-    let availableQuestions = questions.filter(q => !answeredQuestions.includes(q.ID));
-    console.log(`Available questions: ${availableQuestions.length}`);
+    const today = getTodaysDate();
 
-    // If no questions available, reset progress and cycle through all questions again
-    if (availableQuestions.length === 0) {
-        console.log('All questions completed! Cycling through again...');
+    // Check if it's a new day or first time loading
+    if (lastDate !== today || dailyQuestions.length === 0) {
+        console.log(`New day detected! Previous: ${lastDate}, Today: ${today}`);
+
+        // Get questions that haven't been used yet
+        let availableQuestions = questions.filter(q => !usedQuestionIDs.includes(q.ID));
+        console.log(`Available unused questions: ${availableQuestions.length}`);
+
+        // If we've used all questions, reset the pool
+        if (availableQuestions.length < QUESTIONS_PER_DAY) {
+            console.log('Not enough unused questions! Resetting pool...');
+            usedQuestionIDs = [];
+            localStorage.setItem('usedQuestionIDs', JSON.stringify(usedQuestionIDs));
+            availableQuestions = questions;
+        }
+
+        // Select 10 random questions for today
+        const shuffled = shuffleArray(availableQuestions);
+        const todaysSelection = shuffled.slice(0, QUESTIONS_PER_DAY);
+        dailyQuestions = todaysSelection.map(q => q.ID);
+
+        // Add today's questions to the used pool
+        usedQuestionIDs.push(...dailyQuestions);
+
+        // Reset progress for the new day
         answeredQuestions = [];
+        currentQuestionIndex = 0;
+
+        // Save to localStorage
+        localStorage.setItem('dailyQuestions', JSON.stringify(dailyQuestions));
+        localStorage.setItem('usedQuestionIDs', JSON.stringify(usedQuestionIDs));
         localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions));
-        availableQuestions = questions;
+        localStorage.setItem('lastDate', today);
+        lastDate = today;
+
+        console.log(`Selected ${dailyQuestions.length} questions for today:`, dailyQuestions);
+    } else {
+        console.log(`Same day (${today}), using existing ${dailyQuestions.length} questions`);
     }
-
-    // Shuffle and use all available questions
-    dailyQuestions = shuffleArray(availableQuestions).map(q => q.ID);
-    console.log(`Questions in queue: ${dailyQuestions.length}`);
-
-    localStorage.setItem('dailyQuestions', JSON.stringify(dailyQuestions));
-    currentQuestionIndex = 0;
 }
 
 function shuffleArray(array) {
@@ -139,12 +170,38 @@ function getTodaysQuestions() {
     return todaysQs;
 }
 
+function showCompletionMessage() {
+    const answeredCount = Object.keys(sessionAnswers).length;
+    const percentage = answeredCount > 0 ? Math.round((currentScore / answeredCount) * 100) : 0;
+
+    questionText.innerHTML = `
+        <div style="text-align: center; padding: 40px 20px;">
+            <h2 style="font-size: 2em; margin-bottom: 20px; color: #a78bfa;">🎉 Today's Quiz Complete!</h2>
+            <p style="font-size: 1.3em; margin-bottom: 15px;">You've completed all ${QUESTIONS_PER_DAY} questions for today.</p>
+            <p style="font-size: 1.5em; font-weight: bold; color: #059669; margin-bottom: 10px;">Score: ${currentScore}/${answeredCount} (${percentage}%)</p>
+            <p style="font-size: 1em; color: #6b7280; margin-top: 30px;">Come back tomorrow for ${QUESTIONS_PER_DAY} new questions!</p>
+        </div>
+    `;
+
+    // Hide image if displayed
+    const imageElement = document.getElementById('question-image');
+    imageElement.style.display = 'none';
+
+    // Clear options and hide buttons
+    optionsContainer.innerHTML = '';
+    explanationContainer.style.display = 'none';
+    progressBar.textContent = `Final Score: ${currentScore}/${answeredCount} (${percentage}%)`;
+    nextButton.style.display = 'none';
+    skipButton.style.display = 'none';
+    prevButton.style.display = 'none';
+}
+
 function loadQuestion() {
     const todaysQuestions = getTodaysQuestions();
 
-    // If we've reached the end, get more questions and continue seamlessly
+    // If we've reached the end of today's questions, show completion message
     if (currentQuestionIndex >= todaysQuestions.length) {
-        initializeDaily().then(() => loadQuestion());
+        showCompletionMessage();
         return;
     }
 
@@ -169,7 +226,7 @@ function loadQuestion() {
 
     // Count how many questions have been answered (not just viewed)
     const answeredCount = Object.keys(sessionAnswers).length;
-    progressBar.textContent = `Score: ${currentScore}/${answeredCount}`;
+    progressBar.textContent = `Question ${currentQuestionIndex + 1}/${todaysQuestions.length} | Score: ${currentScore}/${answeredCount}`;
 
     // Update button visibility
     prevButton.style.display = currentQuestionIndex > 0 ? 'block' : 'none';
