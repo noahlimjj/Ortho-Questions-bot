@@ -108,9 +108,14 @@ function getTodaysDate() {
 async function initializeDaily() {
     const today = getTodaysDate();
 
+    console.log(`=== Daily Question Check ===`);
+    console.log(`Stored date: "${lastDate}"`);
+    console.log(`Today's date: "${today}"`);
+    console.log(`Date match: ${lastDate === today}`);
+
     // Check if it's a new day or first time loading
     if (lastDate !== today || dailyQuestions.length === 0) {
-        console.log(`New day detected! Previous: ${lastDate}, Today: ${today}`);
+        console.log(`🔄 NEW DAY DETECTED! Selecting fresh questions...`);
 
         // Get questions that haven't been used yet
         let availableQuestions = questions.filter(q => !usedQuestionIDs.includes(q.ID));
@@ -143,10 +148,13 @@ async function initializeDaily() {
         localStorage.setItem('lastDate', today);
         lastDate = today;
 
-        console.log(`Selected ${dailyQuestions.length} questions for today:`, dailyQuestions);
+        console.log(`✅ Selected ${dailyQuestions.length} fresh questions for ${today}`);
+        console.log(`Question IDs:`, dailyQuestions);
     } else {
-        console.log(`Same day (${today}), using existing ${dailyQuestions.length} questions`);
+        console.log(`✓ Same day (${today}) - Using existing ${dailyQuestions.length} questions`);
+        console.log(`Question IDs:`, dailyQuestions);
     }
+    console.log(`=========================`);
 }
 
 function shuffleArray(array) {
@@ -388,6 +396,27 @@ function resetProgress() {
 nextButton.addEventListener('click', nextQuestion);
 prevButton.addEventListener('click', previousQuestion);
 skipButton.addEventListener('click', skipQuestion);
+
+// Function to check if day has changed and reload if necessary
+function checkForNewDay() {
+    const currentStoredDate = localStorage.getItem('lastDate') || '';
+    const actualToday = getTodaysDate();
+
+    if (currentStoredDate !== '' && currentStoredDate !== actualToday) {
+        console.log(`Day changed detected! Stored: ${currentStoredDate}, Actual: ${actualToday}. Reloading...`);
+        location.reload();
+    }
+}
+
+// Check for new day every minute
+setInterval(checkForNewDay, 60000);
+
+// Also check when page becomes visible again (user returns to tab)
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        checkForNewDay();
+    }
+});
 
 // Initialize daily questions and load first question
 (async () => {

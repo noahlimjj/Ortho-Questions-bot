@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Daily Rotation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #7c3aed;
+        }
+        .info {
+            background-color: #e0e7ff;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d1fae5;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            color: #065f46;
+        }
+        pre {
+            background-color: #1f2937;
+            color: #f3f4f6;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        h2 {
+            color: #8b5cf6;
+        }
+    </style>
+</head>
+<body>
+    <h1>Daily Rotation Testing Tool</h1>
+
+    <div class="test-section">
+        <h2>Current Status</h2>
+        <div id="current-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Daily Rotation</h2>
+        <p>These buttons simulate different days by changing the stored date in localStorage:</p>
+        <button onclick="setToday()">Set to Today</button>
+        <button onclick="setYesterday()">Set to Yesterday</button>
+        <button onclick="setTomorrow()">Set to Tomorrow</button>
+        <button onclick="clearAll()">Clear All Data</button>
+        <div class="info" style="margin-top: 15px;">
+            <strong>How to test:</strong>
+            <ol>
+                <li>Click "Set to Yesterday" - this simulates the quiz being from yesterday</li>
+                <li>Open the main quiz page (index.html) and check the console</li>
+                <li>You should see "NEW DAY DETECTED" and new questions will be selected</li>
+                <li>The page will automatically reload when the day changes</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Current localStorage Data</h2>
+        <button onclick="refreshStatus()">Refresh</button>
+        <pre id="storage-data"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Instructions</h2>
+        <div class="success">
+            <strong>The fix ensures questions rotate every 24 hours by:</strong>
+            <ul>
+                <li>✓ Checking for date changes every minute while the page is open</li>
+                <li>✓ Checking when you return to the tab after leaving it</li>
+                <li>✓ Automatically reloading the page when a new day is detected</li>
+                <li>✓ Selecting 10 new random questions each day</li>
+            </ul>
+        </div>
+        <p><strong>To verify it works:</strong></p>
+        <ol>
+            <li>Open the browser console (F12) on the main quiz page</li>
+            <li>Look for the "=== Daily Question Check ===" log</li>
+            <li>The log will show if questions are fresh or from the same day</li>
+            <li>Use this test page to simulate different days</li>
+        </ol>
+    </div>
+
+    <script>
+        function getTodaysDate() {
+            const today = new Date();
+            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
+
+        function getYesterdaysDate() {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            return `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+        }
+
+        function getTomorrowsDate() {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+        }
+
+        function setToday() {
+            localStorage.setItem('lastDate', getTodaysDate());
+            refreshStatus();
+            alert('Set to today: ' + getTodaysDate());
+        }
+
+        function setYesterday() {
+            localStorage.setItem('lastDate', getYesterdaysDate());
+            refreshStatus();
+            alert('Set to yesterday: ' + getYesterdaysDate() + '\n\nNow open the quiz page - it should detect a new day and select fresh questions!');
+        }
+
+        function setTomorrow() {
+            localStorage.setItem('lastDate', getTomorrowsDate());
+            refreshStatus();
+            alert('Set to tomorrow: ' + getTomorrowsDate());
+        }
+
+        function clearAll() {
+            if (confirm('Clear all quiz data from localStorage?')) {
+                localStorage.clear();
+                refreshStatus();
+                alert('All data cleared!');
+            }
+        }
+
+        function refreshStatus() {
+            const today = getTodaysDate();
+            const stored = localStorage.getItem('lastDate') || 'Not set';
+            const dailyQuestions = JSON.parse(localStorage.getItem('dailyQuestions') || '[]');
+            const usedQuestionIDs = JSON.parse(localStorage.getItem('usedQuestionIDs') || '[]');
+
+            const statusDiv = document.getElementById('current-status');
+            statusDiv.innerHTML = `
+                <p><strong>Today's Date:</strong> ${today}</p>
+                <p><strong>Stored Date:</strong> ${stored}</p>
+                <p><strong>Match:</strong> ${stored === today ? '✓ Same day' : '✗ Different day (will trigger new questions)'}</p>
+                <p><strong>Daily Questions Count:</strong> ${dailyQuestions.length}</p>
+                <p><strong>Total Used Questions:</strong> ${usedQuestionIDs.length}</p>
+            `;
+
+            const storageData = {
+                lastDate: localStorage.getItem('lastDate'),
+                dailyQuestions: JSON.parse(localStorage.getItem('dailyQuestions') || 'null'),
+                usedQuestionIDs: JSON.parse(localStorage.getItem('usedQuestionIDs') || 'null'),
+                answeredQuestions: JSON.parse(localStorage.getItem('answeredQuestions') || 'null')
+            };
+
+            document.getElementById('storage-data').textContent = JSON.stringify(storageData, null, 2);
+        }
+
+        // Initial load
+        refreshStatus();
+    </script>
+</body>
+</html>
