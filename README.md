@@ -4,22 +4,29 @@ A daily orthopedic quiz application with automated question generation, designed
 
 ## Features
 
+- 📚 **336 Questions**: Comprehensive question bank across 9 specialized categories
+- 🏷️ **Category Filtering**: Study specific topics (Hand/Wrist, Shoulder, Spine, etc.)
 - 📚 **Daily Quiz System**: 10 randomized questions per day
 - 🔄 **Automated Question Generation**: New questions generated daily via AI
 - 🎯 **Progress Tracking**: Prevents repeat questions and tracks your learning
 - 📊 **Smart Scoring**: Letter grades (A-F) with performance feedback
-- 🏥 **7 Clinical Domains**: Comprehensive coverage of orthopedic topics
 - ✅ **Detailed Explanations**: Learn from every answer
 
-## Orthopedic Domains Covered
+## Categories Available
 
-1. **Trauma** - Fracture classifications, management, complications
-2. **Spine** - Cervical/thoracic/lumbar pathology, spinal cord injuries
-3. **Shoulder and Elbow** - Rotator cuff, instability, nerve injuries
-4. **Wrist/Hand** - Carpal fractures, compartment syndrome
-5. **Hip and Knee** - Fractures, ligament injuries, pediatric conditions
-6. **Foot and Ankle** - Ankle fractures, Achilles pathology, Lisfranc
-7. **Orthopedic Emergencies** - Open fractures, compartment syndrome, septic arthritis
+The quiz includes **336 questions** across **9 specialized categories**:
+
+1. **Hand and Wrist** (~30 questions) - Scaphoid fractures, carpal tunnel, flexor tendons
+2. **Shoulder** (~30 questions) - Rotator cuff, instability, dislocations
+3. **Spine** (~30 questions) - Cervical/thoracic/lumbar pathology, spinal cord injuries
+4. **Hip and Pelvis** (~30 questions) - Hip fractures, AVN, pelvic ring injuries
+5. **Knee** (~30 questions) - ACL/PCL tears, meniscal injuries, fractures
+6. **Foot and Ankle** (~30 questions) - Ankle fractures, Achilles, talus injuries
+7. **Pathology** (~30 questions) - Bone tumors, infections, metabolic bone disease
+8. **Paediatrics** (~30 questions) - SCFE, Perthes, developmental dysplasia
+9. **Trauma** (~30 questions) - Polytrauma, open fractures, compartment syndrome
+
+**Plus 66 mixed/uncategorized questions** covering various orthopedic topics.
 
 ## Live Demo
 
@@ -35,11 +42,31 @@ Then visit `http://localhost:8000`
 
 ### For Users
 
-1. **Daily Questions**: Get 10 new questions every 24 hours
-2. **Answer & Learn**: Select your answer, see if you're correct
-3. **Read Explanations**: Understand why each answer is right/wrong
-4. **Track Progress**: Questions you've answered won't repeat
-5. **Score**: Get graded (A-F) based on your performance
+1. **Select Category**: Choose a specific topic or "All Categories" for mixed practice
+2. **Daily Questions**: Get 10 new questions every 24 hours
+3. **Answer & Learn**: Select your answer, see if you're correct
+4. **Read Explanations**: Understand why each answer is right/wrong
+5. **Track Progress**: Questions you've answered won't repeat
+6. **Score**: Get graded (A-F) based on your performance
+
+### Category Filtering
+
+Study specific topics or get mixed practice:
+
+- **All Categories (Mixed)**: Random questions from all 336 questions
+- **Specific Category**: Focus on one topic (e.g., only Hand and Wrist)
+- **Uncategorized**: Original 66 questions without category assignment
+
+**How to use:**
+1. Select category from dropdown menu at the top
+2. Quiz resets with questions from that category
+3. Daily questions refresh every 24 hours
+4. Progress is tracked separately per category
+
+**Benefits:**
+- Targeted study for weak areas
+- Comprehensive topic review before exams
+- Flexible learning approach
 
 ### For Maintainers (Automated System)
 
@@ -61,7 +88,17 @@ See [docs/AUTOMATION_SETUP.md](docs/AUTOMATION_SETUP.md) for setup instructions.
 ├── script.js                           # Quiz logic and localStorage
 ├── style.css                           # UI styling
 ├── admin.html                          # Admin debugging interface
-├── ortho_questions.csv                 # Question database (main)
+├── ortho_questions.csv                 # Question database (336 questions)
+├── Difficult questions/                # Source chapter CSVs (270 questions)
+│   ├── MCQ_Chapter2_Complete.csv       # Hand and Wrist
+│   ├── MCQ_Chapter3_FULL.csv           # Shoulder
+│   ├── MCQ_Chapter4_Complete.csv       # Spine
+│   ├── MCQ_Chapter5_Complete.csv       # Hip and Pelvis
+│   ├── MCQ_Chapter6_Complete.csv       # Knee
+│   ├── MCQ_Chapter7_Complete.csv       # Foot and Ankle
+│   ├── MCQ_Chapter8_Complete.csv       # Pathology
+│   ├── MCQ_Chapter9_Complete.csv       # Paediatrics
+│   └── MCQ_Chapter10_Complete.csv      # Trauma
 ├── QUESTION_BUILDER_PROMPT.md          # AI prompt template
 ├── README.md                           # This file
 ├── package.json                        # Node.js dependencies
@@ -80,6 +117,7 @@ See [docs/AUTOMATION_SETUP.md](docs/AUTOMATION_SETUP.md) for setup instructions.
 │   ├── AUTOMATION_SETUP.md             # Setup guide
 │   └── gemini.md                       # Alternative AI notes
 ├── utilities/
+│   ├── import_difficult_questions.py   # Import and categorize questions
 │   ├── parser.py                       # Text parsing utilities
 │   ├── checker.py                      # CSV checker
 │   ├── debug_csv.html                  # CSV debugging tool
@@ -113,14 +151,37 @@ python3 -m http.server 8000
 
 Visit `http://localhost:8000`
 
+### Importing Questions from Chapters
+
+To re-import the 270 questions from chapter CSV files:
+
+```bash
+python3 utilities/import_difficult_questions.py
+```
+
+This script will:
+- Read all 9 chapter CSV files from "Difficult questions" folder
+- Map chapters to categories (Ch2→Hand and Wrist, Ch3→Shoulder, etc.)
+- Merge with existing questions
+- Add Category column
+- Output updated ortho_questions.csv with 336 total questions
+
 ## Question Format
 
 Questions are stored in CSV format:
 
 ```csv
-ID,Question,OptionA,OptionB,OptionC,OptionD,OptionE,CorrectAnswer,Explanation
-1,"A 45-year-old...",Option A,Option B,Option C,Option D,Option E,C,"Explanation..."
+ID,Question,OptionA,OptionB,OptionC,OptionD,OptionE,CorrectAnswer,Explanation,ImageURL,Category
+1,"A 45-year-old...",Option A,Option B,Option C,Option D,Option E,C,"Explanation...",,""
+Ch2_Q1,"Which of the following...",Option A,Option B,Option C,Option D,Option E,A,"Explanation...",,"Hand and Wrist"
 ```
+
+**ID Formats:**
+- **Numeric IDs (1-66):** Original questions, uncategorized
+- **Ch#_Q# format:** Imported chapter questions with categories
+  - Ch2 = Hand and Wrist
+  - Ch3 = Shoulder
+  - Ch4 = Spine, etc.
 
 ### Requirements
 

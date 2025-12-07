@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quick Category Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .pass { background: #d4edda; border: 1px solid #28a745; }
+        .fail { background: #f8d7da; border: 1px solid #dc3545; }
+        button { padding: 10px 20px; margin: 10px 5px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h1>Quick Category Filtering Test</h1>
+    <div id="results"></div>
+    <button onclick="testFiltering()">Run Test</button>
+    <button onclick="location.href='index.html'">Go to Quiz</button>
+
+    <script src="script.js"></script>
+    <script>
+        async function testFiltering() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Loading questions...</p>';
+
+            // Wait for questions to load
+            await loadQuestions();
+
+            let html = '';
+
+            // Test 1: Total questions
+            html += `<div class="result ${questions.length > 0 ? 'pass' : 'fail'}">
+                ✓ Loaded ${questions.length} questions
+            </div>`;
+
+            // Test 2: Check categories exist
+            const categories = [...new Set(questions.map(q => q.category).filter(c => c))];
+            html += `<div class="result ${categories.length >= 9 ? 'pass' : 'fail'}">
+                ✓ Found ${categories.length} categories: ${categories.join(', ')}
+            </div>`;
+
+            // Test 3: Hand and Wrist
+            const handWrist = questions.filter(q => q.category === 'Hand and Wrist');
+            html += `<div class="result ${handWrist.length > 0 ? 'pass' : 'fail'}">
+                ✓ Hand and Wrist: ${handWrist.length} questions<br>
+                Sample IDs: ${handWrist.slice(0, 3).map(q => q.ID).join(', ')}
+            </div>`;
+
+            // Test 4: Shoulder
+            const shoulder = questions.filter(q => q.category === 'Shoulder');
+            html += `<div class="result ${shoulder.length > 0 ? 'pass' : 'fail'}">
+                ✓ Shoulder: ${shoulder.length} questions<br>
+                Sample IDs: ${shoulder.slice(0, 3).map(q => q.ID).join(', ')}
+            </div>`;
+
+            // Test 5: Uncategorized
+            const uncategorized = questions.filter(q => !q.category || q.category === '');
+            html += `<div class="result ${uncategorized.length > 0 ? 'pass' : 'fail'}">
+                ✓ Uncategorized: ${uncategorized.length} questions<br>
+                Sample IDs: ${uncategorized.slice(0, 3).map(q => q.ID).join(', ')}
+            </div>`;
+
+            // Test 6: Simulate selecting Hand and Wrist
+            html += '<h3>Simulating "Hand and Wrist" Filter:</h3>';
+            selectedCategory = 'Hand and Wrist';
+            let filteredQuestions = questions.filter(q => q.category === selectedCategory);
+            let shuffled = filteredQuestions.sort(() => 0.5 - Math.random());
+            let daily = shuffled.slice(0, Math.min(10, shuffled.length));
+
+            html += `<div class="result ${daily.length === 10 && daily.every(q => q.category === 'Hand and Wrist') ? 'pass' : 'fail'}">
+                ✓ Would show ${daily.length} Hand and Wrist questions<br>
+                IDs: ${daily.map(q => q.ID).join(', ')}<br>
+                All are Hand and Wrist? ${daily.every(q => q.category === 'Hand and Wrist') ? 'YES ✓' : 'NO ✗'}
+            </div>`;
+
+            results.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

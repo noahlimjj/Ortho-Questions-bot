@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Category Overview - Ortho Quiz</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .category-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .category-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .category-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .category-count {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .category-sample {
+            font-size: 14px;
+            color: #666;
+            font-style: italic;
+            margin-top: 10px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #764ba2;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🦴 Ortho Quiz - Category Overview</h1>
+        <div class="subtitle">Comprehensive Orthopedic Question Bank</div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-questions">-</div>
+                <div class="stat-label">Total Questions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-categories">-</div>
+                <div class="stat-label">Categories</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="uncategorized-count">-</div>
+                <div class="stat-label">Uncategorized</div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">Loading questions...</div>
+        <div id="category-grid" class="category-grid" style="display: none;"></div>
+
+        <div class="button-group">
+            <button onclick="location.href='index.html'">Start Quiz</button>
+            <button onclick="location.href='test_category_filter.html'">Run Tests</button>
+            <button onclick="location.reload()">Refresh</button>
+        </div>
+    </div>
+
+    <script>
+        let questions = [];
+
+        // Parse CSV function
+        function parseCSV(text) {
+            const parsed = (str => {
+                const arr = [];
+                let quote = false;
+                for (let row = 0, col = 0, c = 0; c < str.length; c++) {
+                    let cc = str[c], nc = str[c+1];
+                    arr[row] = arr[row] || [];
+                    arr[row][col] = arr[row][col] || '';
+                    if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; continue; }
+                    if (cc == '"') { quote = !quote; continue; }
+                    if (cc == ',' && !quote) { ++col; continue; }
+                    if (cc == '\r' && nc == '\n' && !quote) { ++row; col = 0; ++c; continue; }
+                    if (cc == '\n' && !quote) { ++row; col = 0; continue; }
+                    if (cc == '\r' && !quote) { ++row; col = 0; continue; }
+                    arr[row][col] += cc;
+                }
+                return arr;
+            })(text);
+
+            const headers = parsed[0].map(h => h.trim());
+            const idIndex = headers.indexOf('ID');
+            const questionIndex = headers.indexOf('Question');
+            const categoryIndex = headers.indexOf('Category');
+
+            return parsed.slice(1)
+                .filter(row => row && row[idIndex] && row[idIndex].trim() !== '')
+                .map(row => ({
+                    ID: row[idIndex],
+                    question: row[questionIndex],
+                    category: row[categoryIndex] ? row[categoryIndex].trim() : ''
+                }))
+                .filter(q => q.ID && q.question);
+        }
+
+        async function loadAndDisplay() {
+            try {
+                const response = await fetch('ortho_questions.csv');
+                const csvText = await response.text();
+                questions = parseCSV(csvText);
+
+                // Calculate stats
+                const categoryCounts = {};
+                questions.forEach(q => {
+                    const cat = q.category || 'Uncategorized';
+                    categoryCounts[cat] = categoryCounts[cat] || { count: 0, samples: [] };
+                    categoryCounts[cat].count++;
+                    if (categoryCounts[cat].samples.length < 3) {
+                        categoryCounts[cat].samples.push(q.question.substring(0, 80) + '...');
+                    }
+                });
+
+                // Update stats
+                document.getElementById('total-questions').textContent = questions.length;
+                const numCategories = Object.keys(categoryCounts).filter(c => c !== 'Uncategorized').length;
+                document.getElementById('total-categories').textContent = numCategories;
+                document.getElementById('uncategorized-count').textContent = categoryCounts['Uncategorized']?.count || 0;
+
+                // Create category cards
+                let html = '';
+                const categories = [
+                    'Hand and Wrist',
+                    'Shoulder',
+                    'Spine',
+                    'Hip and Pelvis',
+                    'Knee',
+                    'Foot and Ankle',
+                    'Pathology',
+                    'Paediatrics',
+                    'Trauma',
+                    'Uncategorized'
+                ];
+
+                categories.forEach(cat => {
+                    const data = categoryCounts[cat];
+                    if (data) {
+                        const emoji = {
+                            'Hand and Wrist': '✋',
+                            'Shoulder': '💪',
+                            'Spine': '🔙',
+                            'Hip and Pelvis': '🦴',
+                            'Knee': '🦵',
+                            'Foot and Ankle': '🦶',
+                            'Pathology': '🔬',
+                            'Paediatrics': '👶',
+                            'Trauma': '🚑',
+                            'Uncategorized': '📚'
+                        };
+
+                        html += `
+                            <div class="category-card">
+                                <div class="category-name">${emoji[cat]} ${cat}</div>
+                                <div class="category-count">${data.count} questions</div>
+                                <div class="category-sample">
+                                    Sample: "${data.samples[0]}"
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('category-grid').style.display = 'grid';
+                document.getElementById('category-grid').innerHTML = html;
+
+            } catch (error) {
+                document.getElementById('loading').innerHTML = `
+                    <div style="color: #dc3545;">
+                        ❌ Error loading questions: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        window.addEventListener('load', loadAndDisplay);
+    </script>
+</body>
+</html>

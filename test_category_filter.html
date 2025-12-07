@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Category Filter Test Suite</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 { color: #333; }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .pass {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+        .fail {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            color: #0c5460;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover { background: #0056b3; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #007bff;
+            color: white;
+        }
+        tr:nth-child(even) { background: #f9f9f9; }
+        #summary {
+            font-size: 24px;
+            font-weight: bold;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .summary-pass {
+            background: #d4edda;
+            color: #155724;
+        }
+        .summary-fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Category Filter Test Suite</h1>
+    <button onclick="runAllTests()">Run All Tests</button>
+    <button onclick="location.href='index.html'">Go to Quiz</button>
+
+    <div id="summary"></div>
+    <div id="results"></div>
+
+    <script>
+        let questions = [];
+        let testResults = [];
+
+        // Parse CSV function (copied from script.js)
+        function parseCSV(text) {
+            const parsed = (str => {
+                const arr = [];
+                let quote = false;
+                for (let row = 0, col = 0, c = 0; c < str.length; c++) {
+                    let cc = str[c], nc = str[c+1];
+                    arr[row] = arr[row] || [];
+                    arr[row][col] = arr[row][col] || '';
+                    if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; continue; }
+                    if (cc == '"') { quote = !quote; continue; }
+                    if (cc == ',' && !quote) { ++col; continue; }
+                    if (cc == '\r' && nc == '\n' && !quote) { ++row; col = 0; ++c; continue; }
+                    if (cc == '\n' && !quote) { ++row; col = 0; continue; }
+                    if (cc == '\r' && !quote) { ++row; col = 0; continue; }
+                    arr[row][col] += cc;
+                }
+                return arr;
+            })(text);
+
+            const headers = parsed[0].map(h => h.trim());
+            const idIndex = headers.indexOf('ID');
+            const questionIndex = headers.indexOf('Question');
+            const optionAIndex = headers.indexOf('OptionA');
+            const optionBIndex = headers.indexOf('OptionB');
+            const optionCIndex = headers.indexOf('OptionC');
+            const optionDIndex = headers.indexOf('OptionD');
+            const optionEIndex = headers.indexOf('OptionE');
+            const answerIndex = headers.indexOf('CorrectAnswer');
+            const explanationIndex = headers.indexOf('Explanation');
+            const imageUrlIndex = headers.indexOf('ImageURL');
+            const categoryIndex = headers.indexOf('Category');
+
+            return parsed.slice(1)
+                .filter(row => row && row[idIndex] && row[idIndex].trim() !== '')
+                .map(row => {
+                    const options = [
+                        row[optionAIndex],
+                        row[optionBIndex],
+                        row[optionCIndex],
+                        row[optionDIndex],
+                        row[optionEIndex],
+                    ];
+
+                    let correctAnswerText = '';
+                    const correctLetter = row[answerIndex];
+                    if (correctLetter === 'A') correctAnswerText = row[optionAIndex];
+                    else if (correctLetter === 'B') correctAnswerText = row[optionBIndex];
+                    else if (correctLetter === 'C') correctAnswerText = row[optionCIndex];
+                    else if (correctLetter === 'D') correctAnswerText = row[optionDIndex];
+                    else if (correctLetter === 'E') correctAnswerText = row[optionEIndex];
+
+                    return {
+                        ID: row[idIndex],
+                        question: row[questionIndex],
+                        options: options.filter(o => o && o.trim() !== ''),
+                        answer: correctAnswerText,
+                        explanation: row[explanationIndex],
+                        imageUrl: row[imageUrlIndex] ? row[imageUrlIndex].trim() : null,
+                        category: row[categoryIndex] ? row[categoryIndex].trim() : ''
+                    };
+                })
+                .filter(q => q.ID && q.question && q.answer);
+        }
+
+        async function loadQuestions() {
+            try {
+                const response = await fetch('ortho_questions.csv');
+                const csvText = await response.text();
+                questions = parseCSV(csvText);
+                return true;
+            } catch (error) {
+                console.error('Error loading questions:', error);
+                return false;
+            }
+        }
+
+        function addResult(testName, passed, message) {
+            testResults.push({ testName, passed, message });
+        }
+
+        function test1_TotalQuestionCount() {
+            const count = questions.length;
+            const passed = count === 336;
+            addResult('Total Question Count', passed,
+                `Expected 336 questions, got ${count}`);
+        }
+
+        function test2_CategoryFieldExists() {
+            const allHaveCategory = questions.every(q => 'category' in q);
+            addResult('Category Field Exists', allHaveCategory,
+                `All ${questions.length} questions have 'category' field: ${allHaveCategory}`);
+        }
+
+        function test3_OldQuestionsUncategorized() {
+            const numericIDQuestions = questions.filter(q => !isNaN(parseInt(q.ID)) && !q.ID.includes('Ch'));
+            const allBlankCategory = numericIDQuestions.every(q => !q.category || q.category === '');
+            addResult('Old Questions Uncategorized', allBlankCategory,
+                `${numericIDQuestions.length} numeric ID questions, all have blank category: ${allBlankCategory}`);
+        }
+
+        function test4_NewQuestionsCategorized() {
+            const chapterQuestions = questions.filter(q => q.ID.includes('Ch'));
+            const allHaveCategory = chapterQuestions.every(q => q.category && q.category !== '');
+            const categoryCount = chapterQuestions.filter(q => q.category && q.category !== '').length;
+            addResult('New Questions Categorized', allHaveCategory,
+                `${categoryCount}/${chapterQuestions.length} chapter questions have categories`);
+        }
+
+        function test5_CategoryCounts() {
+            const categoryCounts = {};
+            questions.forEach(q => {
+                const cat = q.category || 'Uncategorized';
+                categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+            });
+
+            let html = '<table><tr><th>Category</th><th>Count</th><th>Status</th></tr>';
+            const expectedCount = 30;
+            let allPass = true;
+
+            Object.keys(categoryCounts).sort().forEach(cat => {
+                const count = categoryCounts[cat];
+                let status = '✅';
+                if (cat !== 'Uncategorized' && count < 25) {
+                    status = '⚠️ Low';
+                    allPass = false;
+                }
+                html += `<tr><td>${cat}</td><td>${count}</td><td>${status}</td></tr>`;
+            });
+            html += '</table>';
+
+            addResult('Category Distribution', allPass, html);
+        }
+
+        function test6_HandAndWristQuestions() {
+            const handWristQ = questions.filter(q => q.category === 'Hand and Wrist');
+            const allAreCh2 = handWristQ.every(q => q.ID.startsWith('Ch2_'));
+            addResult('Hand and Wrist = Ch2', allAreCh2,
+                `${handWristQ.length} Hand and Wrist questions, all start with Ch2_: ${allAreCh2}`);
+        }
+
+        function test7_ShoulderQuestions() {
+            const shoulderQ = questions.filter(q => q.category === 'Shoulder');
+            const allAreCh3 = shoulderQ.every(q => q.ID.startsWith('Ch3_'));
+            addResult('Shoulder = Ch3', allAreCh3,
+                `${shoulderQ.length} Shoulder questions, all start with Ch3_: ${allAreCh3}`);
+        }
+
+        function test8_AllCategoriesExist() {
+            const expectedCategories = [
+                'Hand and Wrist', 'Shoulder', 'Spine', 'Hip and Pelvis',
+                'Knee', 'Foot and Ankle', 'Pathology', 'Paediatrics', 'Trauma'
+            ];
+
+            const actualCategories = [...new Set(questions.map(q => q.category).filter(c => c))];
+            const allExist = expectedCategories.every(cat => actualCategories.includes(cat));
+
+            addResult('All 9 Categories Exist', allExist,
+                `Found categories: ${actualCategories.join(', ')}`);
+        }
+
+        function test9_NoInvalidCategories() {
+            const validCategories = [
+                'Hand and Wrist', 'Shoulder', 'Spine', 'Hip and Pelvis',
+                'Knee', 'Foot and Ankle', 'Pathology', 'Paediatrics', 'Trauma', ''
+            ];
+
+            const invalidQuestions = questions.filter(q =>
+                q.category && !validCategories.includes(q.category)
+            );
+
+            const passed = invalidQuestions.length === 0;
+            addResult('No Invalid Categories', passed,
+                passed ? 'All categories are valid' :
+                `Found ${invalidQuestions.length} questions with invalid categories`);
+        }
+
+        function test10_IDFormats() {
+            const numericIDs = questions.filter(q => !isNaN(parseInt(q.ID)) && !q.ID.includes('Ch'));
+            const chapterIDs = questions.filter(q => q.ID.includes('Ch') && q.ID.includes('_'));
+
+            const total = numericIDs.length + chapterIDs.length;
+            const passed = total === questions.length;
+
+            addResult('ID Formats Valid', passed,
+                `Numeric IDs: ${numericIDs.length}, Chapter IDs: ${chapterIDs.length}, Total: ${total}/${questions.length}`);
+        }
+
+        async function runAllTests() {
+            document.getElementById('results').innerHTML = '<div class="test-result info">Loading questions...</div>';
+            document.getElementById('summary').innerHTML = '';
+            testResults = [];
+
+            const loaded = await loadQuestions();
+            if (!loaded) {
+                document.getElementById('results').innerHTML = '<div class="test-result fail">Failed to load questions!</div>';
+                return;
+            }
+
+            // Run all tests
+            test1_TotalQuestionCount();
+            test2_CategoryFieldExists();
+            test3_OldQuestionsUncategorized();
+            test4_NewQuestionsCategorized();
+            test5_CategoryCounts();
+            test6_HandAndWristQuestions();
+            test7_ShoulderQuestions();
+            test8_AllCategoriesExist();
+            test9_NoInvalidCategories();
+            test10_IDFormats();
+
+            // Display results
+            let html = '';
+            let passCount = 0;
+            let failCount = 0;
+
+            testResults.forEach(result => {
+                const className = result.passed ? 'pass' : 'fail';
+                const icon = result.passed ? '✅' : '❌';
+                if (result.passed) passCount++;
+                else failCount++;
+
+                html += `
+                    <div class="test-section">
+                        <h3>${icon} ${result.testName}</h3>
+                        <div class="test-result ${className}">${result.message}</div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('results').innerHTML = html;
+
+            // Summary
+            const allPassed = failCount === 0;
+            const summaryClass = allPassed ? 'summary-pass' : 'summary-fail';
+            const summaryIcon = allPassed ? '🎉' : '⚠️';
+
+            document.getElementById('summary').innerHTML = `
+                <div class="${summaryClass}">
+                    ${summaryIcon} ${passCount}/${testResults.length} Tests Passed
+                    ${allPassed ? '<br>✅ Ready for Production!' : '<br>❌ Some tests failed - needs fixes'}
+                </div>
+            `;
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', runAllTests);
+    </script>
+</body>
+</html>
